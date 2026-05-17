@@ -465,6 +465,9 @@ function App(){
     setSyncing(false);
   };
 
+  const delExp=async(id)=>{setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);};
+  const delInc=async(id)=>{setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);};
+  const delBDO=async(id)=>{setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);};
   const[confirmDel,setConfirmDel]=useState(null);
   const confirmAndDel=(type,id,label)=>setConfirmDel({type,id,label});
   const execDel=async()=>{
@@ -475,9 +478,6 @@ function App(){
     else if(type==="inc"){setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);}
     else if(type==="bdo"){setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);}
   };
-  const delExp=async(id)=>{setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);};
-  const delInc=async(id)=>{setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);};
-  const delBDO=async(id)=>{setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);};
 
   const delSelected=async()=>{
     setSyncing(true);
@@ -938,28 +938,13 @@ function App(){
             <PieChart data={catTotals}/>
           </Card>
 
-          {/* Action buttons */}
+          {/* Action buttons — Select & Export only (Add buttons moved to global FAB) */}
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            {[[C.coral,"ti-plus","Add expense",()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}],[C.teal,"ti-plus","Add income",()=>{setModal("income");setForm({});}]].map(([bg,ic,label,fn])=>(
-              <button key={label} onClick={fn} style={{flex:1,minWidth:130,padding:"13px",borderRadius:12,border:"none",background:bg,color:C.white,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-                <i className={`ti ${ic}`} aria-hidden="true" style={{fontSize:17}}/>{label}
-              </button>
-            ))}
-            <button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
+            <button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className={`ti ${selectMode?"ti-x":"ti-select"}`} aria-hidden="true" style={{fontSize:17}}/>{selectMode?"Cancel":"Select"}
             </button>
-            <button onClick={()=>setModal("export")} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
+            <button onClick={()=>setModal("export")} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className="ti ti-file-spreadsheet" aria-hidden="true" style={{fontSize:17}}/>Export
-            </button>
-          </div>
-
-          {/* Sticky floating shortcut bar */}
-          <div style={{position:"sticky",bottom:16,zIndex:150,display:"flex",gap:10,justifyContent:"center",pointerEvents:"none"}}>
-            <button onClick={()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:7,padding:"12px 20px",borderRadius:50,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14,boxShadow:"0 4px 18px rgba(244,132,95,0.5)",whiteSpace:"nowrap"}}>
-              <i className="ti ti-plus" style={{fontSize:16}}/> Expense
-            </button>
-            <button onClick={()=>{setModal("income");setForm({});}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:7,padding:"12px 20px",borderRadius:50,border:"none",background:C.teal,color:C.white,fontWeight:500,fontSize:14,boxShadow:"0 4px 18px rgba(29,158,117,0.5)",whiteSpace:"nowrap"}}>
-              <i className="ti ti-plus" style={{fontSize:16}}/> Income
             </button>
           </div>
 
@@ -1558,6 +1543,22 @@ function App(){
         </div>
       )}
     </div>
+
+      {/* ── GLOBAL FLOATING ADD BUTTONS (always visible) ── */}
+      {(view==="monthly"||view==="dashboard"||view==="bdo"||view==="grocery")&&(
+        <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",display:"flex",gap:10,zIndex:500,pointerEvents:"none"}}>
+          <button
+            onClick={()=>{setView("monthly");setTimeout(()=>{setModal("expense");setForm({category:"Food",payType:"Card"});},50);}}
+            style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 22px",borderRadius:50,border:"none",background:C.coral,color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(244,132,95,0.55)",whiteSpace:"nowrap",cursor:"pointer"}}>
+            <i className="ti ti-plus" style={{fontSize:17}}/> Expense
+          </button>
+          <button
+            onClick={()=>{setView("monthly");setTimeout(()=>{setModal("income");setForm({});},50);}}
+            style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 22px",borderRadius:50,border:"none",background:C.teal,color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(29,158,117,0.55)",whiteSpace:"nowrap",cursor:"pointer"}}>
+            <i className="ti ti-plus" style={{fontSize:17}}/> Income
+          </button>
+        </div>
+      )}
 
       {/* Confirm delete overlay */}
       {confirmDel&&(
