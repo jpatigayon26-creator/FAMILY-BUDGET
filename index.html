@@ -4,24 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<style>
-  .desktop-grid { display: flex; flex-direction: column; gap: 14px; }
-  .desktop-col-left { display: flex; flex-direction: column; gap: 14px; }
-  .desktop-col-right { display: flex; flex-direction: column; gap: 14px; }
-  @media (min-width: 768px) {
-    .desktop-grid { flex-direction: row; align-items: flex-start; }
-    .desktop-col-left { flex: 1.2; min-width: 0; }
-    .desktop-col-right { flex: 1; min-width: 0; }
-  }
-  .monthly-grid { display: flex; flex-direction: column; gap: 14px; }
-  .monthly-left { display: flex; flex-direction: column; gap: 14px; }
-  .monthly-right { display: flex; flex-direction: column; gap: 14px; }
-  @media (min-width: 768px) {
-    .monthly-grid { flex-direction: row; align-items: flex-start; }
-    .monthly-left { flex: 1.1; min-width: 0; }
-    .monthly-right { flex: 0.9; min-width: 0; }
-  }
-</style>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Family Budget"/>
 <meta name="theme-color" content="#2C3E6B"/>
@@ -621,7 +603,7 @@ function App(){
   );
 
   return(
-    <div style={{maxWidth:1200,margin:"0 auto",background:"#F5F6FA",minHeight:"100vh"}}>
+    <div style={{maxWidth:760,margin:"0 auto",background:"#F5F6FA",minHeight:"100vh"}}>
 
       {toast&&(
         <div style={{position:"fixed",top:16,right:16,left:16,maxWidth:400,margin:"0 auto",background:toast.color,color:C.white,padding:"12px 18px",borderRadius:12,fontSize:13,fontWeight:500,zIndex:999,textAlign:"center"}}>
@@ -681,8 +663,7 @@ function App(){
 
       {/* ── DASHBOARD ── */}
       {view==="dashboard"&&(
-        <div className="desktop-grid">
-          <div className="desktop-col-left">
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
 
           {/* Wedding photo hero + savings */}
           <div style={{position:"relative",borderRadius:18,overflow:"hidden",minHeight:200}}>
@@ -717,9 +698,6 @@ function App(){
             </div>
           </div>
 
-          </div>{/* end desktop-col-left */}
-          <div className="desktop-col-right">
-
           {/* Yearly table */}
           <Card>
             <SL icon="ti-table" text="Yearly overview"/>
@@ -745,14 +723,12 @@ function App(){
             </div>
             <div style={{marginTop:8,fontSize:11,color:C.textLight,textAlign:"center"}}>Tap any month to open it</div>
           </Card>
-          </div>{/* end desktop-col-right */}
-        </div>{/* end desktop-grid */}
+        </div>
       )}
 
       {/* ── MONTHLY ── */}
       {view==="monthly"&&(
-        <div className="monthly-grid">
-          <div className="monthly-left">
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
 
           {/* Month nav */}
           <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -944,9 +920,6 @@ function App(){
             <PieChart data={catTotals}/>
           </Card>
 
-          </div>{/* end monthly-left */}
-          <div className="monthly-right">
-
           {/* Action buttons */}
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             {[[C.coral,"ti-plus","Add expense",()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}],[C.teal,"ti-plus","Add income",()=>{setModal("income");setForm({});}]].map(([bg,ic,label,fn])=>(
@@ -1123,8 +1096,7 @@ function App(){
               </div>
             )}
           </Card>
-          </div>{/* end monthly-right */}
-        </div>{/* end monthly-grid */}
+        </div>
       )}
 
       {/* ── BDO TAB ── */}
