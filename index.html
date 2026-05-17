@@ -465,12 +465,16 @@ function App(){
     setSyncing(false);
   };
 
-  const[confirmDel,setConfirmDel]=useState(null); // {type,id,label}
+  const[confirmDel,setConfirmDel]=useState(null);
   const confirmAndDel=(type,id,label)=>setConfirmDel({type,id,label});
-  const execDel=async()=>{\n    if(!confirmDel)return;\n    const{type,id}=confirmDel;\n    setConfirmDel(null);\n    if(type===\"exp\"){setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);}\n    else if(type===\"inc\"){setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);}\n    else if(type===\"bdo\"){setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);}\n  };
-  const delExp=async(id)=>{setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);};
-  const delInc=async(id)=>{setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);};
-  const delBDO=async(id)=>{setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);};
+  const execDel=async()=>{
+    if(!confirmDel)return;
+    const{type,id}=confirmDel;
+    setConfirmDel(null);
+    if(type==="exp"){setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);}
+    else if(type==="inc"){setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);}
+    else if(type==="bdo"){setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);}
+  };
 
   const delSelected=async()=>{
     setSyncing(true);
