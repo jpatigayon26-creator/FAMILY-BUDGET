@@ -856,17 +856,17 @@ function App(){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}} className="grid-2">
               <div>
                 <label style={lbl}><i className="ti ti-piggy-bank" aria-hidden="true" style={{color:C.purple,marginRight:4}}/>Savings set aside (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.sav??ms.savings??""} onChange={e=>setForm(f=>({...f,sav:e.target.value}))} onBlur={e=>{updateMS({savings:Number(e.target.value)});setForm(f=>({...f,sav:undefined}));}} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" pattern="[0-9]*" key={`sav-${selMonth}`} defaultValue={ms.savings||""} onBlur={e=>updateMS({savings:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Already deducted from income — display only</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-cash-banknote" aria-hidden="true" style={{color:C.amber,marginRight:4}}/>Withdraw amount (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.wd??ms.withdraw??""} onChange={e=>setForm(f=>({...f,wd:e.target.value}))} onBlur={e=>{updateMS({withdraw:Number(e.target.value)});setForm(f=>({...f,wd:undefined}));}} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" pattern="[0-9]*" key={`wd-${selMonth}`} defaultValue={ms.withdraw||""} onBlur={e=>updateMS({withdraw:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Deducted from income in balance</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-target" aria-hidden="true" style={{color:C.coral,marginRight:4}}/>Budget limit (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.bl??ms.budget_limit??""} onChange={e=>setForm(f=>({...f,bl:e.target.value}))} onBlur={e=>{updateMS({budget_limit:Number(e.target.value)});setForm(f=>({...f,bl:undefined}));}} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" pattern="[0-9]*" key={`bl-${selMonth}`} defaultValue={ms.budget_limit||""} onBlur={e=>updateMS({budget_limit:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
               </div>
 
             </div>
