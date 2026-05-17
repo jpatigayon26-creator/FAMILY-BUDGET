@@ -206,6 +206,24 @@ function App(){
 
   const showToast=(msg,color=C.teal)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
 
+  // Lock body scroll when modal open — prevents scroll-to-top on input focus
+  useEffect(()=>{
+    if(modal){
+      document.body.style.overflow='hidden';
+      document.body.style.position='fixed';
+      document.body.style.width='100%';
+    } else {
+      document.body.style.overflow='';
+      document.body.style.position='';
+      document.body.style.width='';
+    }
+    return()=>{
+      document.body.style.overflow='';
+      document.body.style.position='';
+      document.body.style.width='';
+    };
+  },[modal]);
+
   const fetchRate=useCallback(async()=>{
     setRateLoading(true);
     try{
@@ -838,17 +856,17 @@ function App(){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}} className="grid-2">
               <div>
                 <label style={lbl}><i className="ti ti-piggy-bank" aria-hidden="true" style={{color:C.purple,marginRight:4}}/>Savings set aside (AED)</label>
-                <input type="number" inputMode="decimal" value={ms.savings||""} onChange={e=>updateMS({savings:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.sav??ms.savings??""} onChange={e=>setForm(f=>({...f,sav:e.target.value}))} onBlur={e=>{updateMS({savings:Number(e.target.value)});setForm(f=>({...f,sav:undefined}));}} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Already deducted from income — display only</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-cash-banknote" aria-hidden="true" style={{color:C.amber,marginRight:4}}/>Withdraw amount (AED)</label>
-                <input type="number" inputMode="decimal" value={ms.withdraw||""} onChange={e=>updateMS({withdraw:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.wd??ms.withdraw??""} onChange={e=>setForm(f=>({...f,wd:e.target.value}))} onBlur={e=>{updateMS({withdraw:Number(e.target.value)});setForm(f=>({...f,wd:undefined}));}} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Deducted from income in balance</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-target" aria-hidden="true" style={{color:C.coral,marginRight:4}}/>Budget limit (AED)</label>
-                <input type="number" inputMode="decimal" value={ms.budget_limit||""} onChange={e=>updateMS({budget_limit:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.bl??ms.budget_limit??""} onChange={e=>setForm(f=>({...f,bl:e.target.value}))} onBlur={e=>{updateMS({budget_limit:Number(e.target.value)});setForm(f=>({...f,bl:undefined}));}} placeholder="0.00" style={{...inp,marginBottom:0}}/>
               </div>
 
             </div>
@@ -1193,7 +1211,7 @@ function App(){
               <label style={lbl}>Date</label>
               <input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
               <label style={lbl}>Amount (AED)</label>
-              <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
+              <input type="text" inputMode="decimal" pattern="[0-9]*" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
               <label style={lbl}>Description</label>
               <input placeholder="e.g. Breakfast" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={inp}/>
               <label style={lbl}>Category</label>
@@ -1229,7 +1247,7 @@ function App(){
               <label style={lbl}>Date</label>
               <input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
               <label style={lbl}>Amount (AED)</label>
-              <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
+              <input type="text" inputMode="decimal" pattern="[0-9]*" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
               <label style={lbl}>Description</label>
               <input placeholder="e.g. Angel Salary" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={inp}/>
               <div style={{display:"flex",gap:8}}>
@@ -1265,7 +1283,7 @@ function App(){
               <label style={lbl}>Date</label>
               <input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
               <label style={lbl}>Amount (PHP)</label>
-              <input type="number" inputMode="decimal" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
+              <input type="text" inputMode="decimal" pattern="[0-9]*" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
               <label style={lbl}>Description</label>
               <input placeholder={(form.bdoType||"expense")==="deposit"?"e.g. Salary transfer":"e.g. Gcash to Mother"} value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={inp}/>
               {(form.bdoType||"expense")==="expense"&&<>
@@ -1291,7 +1309,7 @@ function App(){
               {aedToPhp&&<div style={{fontSize:12,color:C.teal,marginBottom:14,background:C.tealLight,padding:"8px 12px",borderRadius:8}}>
                 PHP equivalent: <strong>{fmtN(Number(form.val||0)*aedToPhp,"PHP")}</strong> at {aedToPhp.toFixed(4)} PHP/AED
               </div>}
-              <input type="number" inputMode="decimal" value={form.val||""} onChange={e=>setForm(f=>({...f,val:e.target.value}))} style={inp} placeholder="0.00"/>
+              <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.val||""} onChange={e=>setForm(f=>({...f,val:e.target.value}))} style={inp} placeholder="0.00"/>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>{updateSavings("aed",form.val);setModal(null);setForm({});}} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.navy,color:C.white,fontWeight:500}}>Save</button>
                 <button onClick={()=>{setModal(null);setForm({});}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid}}>Cancel</button>
