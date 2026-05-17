@@ -465,6 +465,9 @@ function App(){
     setSyncing(false);
   };
 
+  const[confirmDel,setConfirmDel]=useState(null); // {type,id,label}
+  const confirmAndDel=(type,id,label)=>setConfirmDel({type,id,label});
+  const execDel=async()=>{\n    if(!confirmDel)return;\n    const{type,id}=confirmDel;\n    setConfirmDel(null);\n    if(type===\"exp\"){setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);}\n    else if(type===\"inc\"){setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);}\n    else if(type===\"bdo\"){setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);}\n  };
   const delExp=async(id)=>{setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);};
   const delInc=async(id)=>{setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);};
   const delBDO=async(id)=>{setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);};
@@ -928,7 +931,7 @@ function App(){
             <PieChart data={catTotals}/>
           </Card>
 
-          {/* Action buttons */}
+          {/* Action buttons (inline, always visible) */}
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             {[[C.coral,"ti-plus","Add expense",()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}],[C.teal,"ti-plus","Add income",()=>{setModal("income");setForm({});}]].map(([bg,ic,label,fn])=>(
               <button key={label} onClick={fn} style={{flex:1,minWidth:130,padding:"13px",borderRadius:12,border:"none",background:bg,color:C.white,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
@@ -940,6 +943,16 @@ function App(){
             </button>
             <button onClick={()=>setModal("export")} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
               <i className="ti ti-file-spreadsheet" aria-hidden="true" style={{fontSize:17}}/>Export
+            </button>
+          </div>
+
+          {/* Sticky floating shortcut bar (follows scroll) */}
+          <div style={{position:"sticky",bottom:16,zIndex:150,display:"flex",gap:10,justifyContent:"center",pointerEvents:"none"}}>
+            <button onClick={()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:7,padding:"12px 20px",borderRadius:50,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14,boxShadow:"0 4px 18px rgba(244,132,95,0.5)",whiteSpace:"nowrap"}}>
+              <i className="ti ti-plus" style={{fontSize:16}}/> Expense
+            </button>
+            <button onClick={()=>{setModal("income");setForm({});}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:7,padding:"12px 20px",borderRadius:50,border:"none",background:C.teal,color:C.white,fontWeight:500,fontSize:14,boxShadow:"0 4px 18px rgba(29,158,117,0.5)",whiteSpace:"nowrap"}}>
+              <i className="ti ti-plus" style={{fontSize:16}}/> Income
             </button>
           </div>
 
@@ -1046,7 +1059,7 @@ function App(){
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:C.text}}>AED {Number(e.amount).toFixed(2)}</div>
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();delExp(e.id);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
@@ -1094,7 +1107,7 @@ function App(){
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontWeight:500,fontSize:13,color:C.teal}}>AED {Number(e.amount).toFixed(2)}</div>
-                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();delInc(e.id);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                     </div>
                   </div>
                 );})}
@@ -1206,7 +1219,7 @@ function App(){
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{e.tx_type==="deposit"?"+":"-"}PHP {Number(e.amount).toFixed(2)}</div>
                         {e.tx_type==="deposit"&&<div style={{fontSize:10,color:C.teal,marginTop:1}}>deposit</div>}
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();delBDO(e.id);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
@@ -1383,7 +1396,25 @@ function App(){
       )}
 
 
-      {/* ── MODALS ── */}
+      {/* ── CONFIRM DELETE OVERLAY ── */}
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,padding:"0 1rem"}}>
+          <div style={{background:C.white,borderRadius:18,padding:"1.5rem",width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}}>
+            <div style={{width:48,height:48,borderRadius:14,background:C.redLight,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <i className="ti ti-trash" style={{fontSize:24,color:C.red}}/>
+            </div>
+            <div style={{textAlign:"center",fontWeight:500,fontSize:16,color:C.text,marginBottom:8}}>Delete this entry?</div>
+            <div style={{textAlign:"center",fontSize:13,color:C.textMid,marginBottom:20,lineHeight:1.5}}>
+              "<strong>{confirmDel.label}</strong>" will be permanently deleted and cannot be undone.
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14,fontWeight:500}}>Cancel</button>
+              <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:C.red,color:C.white,fontSize:14,fontWeight:500}}>Yes, delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal&&(
         <div onClick={e=>{if(e.target===e.currentTarget){setModal(null);setForm({});}}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200}}>
           <div style={{background:C.white,borderRadius:"20px 20px 0 0",padding:"1.5rem",width:"100%",maxWidth:500,maxHeight:"92vh",overflowY:"auto"}}>
