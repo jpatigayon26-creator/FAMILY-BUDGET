@@ -130,9 +130,9 @@ function PieChart({data}){
 }
 
 // Isolated input component — immune to parent re-renders
+// key prop from parent resets it when month changes
 function StableInput({initialValue, onSave, placeholder, style}){
-  const[val,setVal]=React.useState(initialValue||"");
-  React.useEffect(()=>{setVal(initialValue||"");},[initialValue]);
+  const[val,setVal]=React.useState(()=>initialValue!=null?String(initialValue):"");
   return React.createElement("input",{
     type:"text",
     inputMode:"decimal",
