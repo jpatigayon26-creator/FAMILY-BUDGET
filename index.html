@@ -129,6 +129,22 @@ function PieChart({data}){
   );
 }
 
+// Isolated input component — immune to parent re-renders
+function StableInput({initialValue, onSave, placeholder, style}){
+  const[val,setVal]=React.useState(initialValue||"");
+  React.useEffect(()=>{setVal(initialValue||"");},[initialValue]);
+  return React.createElement("input",{
+    type:"text",
+    inputMode:"decimal",
+    pattern:"[0-9]*",
+    value:val,
+    placeholder:placeholder||"0.00",
+    style:style,
+    onChange:e=>setVal(e.target.value),
+    onBlur:e=>onSave(e.target.value),
+  });
+}
+
 function App(){
   const[view,setView]=useState("dashboard");
   const[selMonth,setSelMonth]=useState(3); // 1-based: Jan=1,Feb=2,Mar=3,Apr=4,May=5
@@ -856,17 +872,17 @@ function App(){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}} className="grid-2">
               <div>
                 <label style={lbl}><i className="ti ti-piggy-bank" aria-hidden="true" style={{color:C.purple,marginRight:4}}/>Savings set aside (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" key={`sav-${selMonth}`} defaultValue={ms.savings||""} onBlur={e=>updateMS({savings:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`sav-${selMonth}`} initialValue={ms.savings} onSave={v=>updateMS({savings:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Already deducted from income — display only</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-cash-banknote" aria-hidden="true" style={{color:C.amber,marginRight:4}}/>Withdraw amount (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" key={`wd-${selMonth}`} defaultValue={ms.withdraw||""} onBlur={e=>updateMS({withdraw:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`wd-${selMonth}`} initialValue={ms.withdraw} onSave={v=>updateMS({withdraw:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Deducted from income in balance</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-target" aria-hidden="true" style={{color:C.coral,marginRight:4}}/>Budget limit (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" key={`bl-${selMonth}`} defaultValue={ms.budget_limit||""} onBlur={e=>updateMS({budget_limit:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`bl-${selMonth}`} initialValue={ms.budget_limit} onSave={v=>updateMS({budget_limit:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
               </div>
 
             </div>
