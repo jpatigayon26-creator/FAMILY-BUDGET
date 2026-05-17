@@ -621,7 +621,6 @@ function App(){
   );
 
   return(
-    <>
     <div style={{maxWidth:760,margin:"0 auto",background:"#F5F6FA",minHeight:"100vh",paddingBottom:90}}>
 
       {toast&&(
@@ -1543,37 +1542,36 @@ function App(){
           </div>
         </div>
       )}
-    </div>
 
-    {/* Global floating add buttons - fixed to screen, always visible */}
-    <div style={{position:"fixed",bottom:24,left:0,right:0,display:"flex",gap:12,justifyContent:"center",zIndex:500,pointerEvents:"none"}}>
-      <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("expense");setForm({category:"Food",payType:"Card"});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#F4845F",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(244,132,95,0.6)",cursor:"pointer"}}>
-        <i className="ti ti-plus" style={{fontSize:17}}/> Expense
-      </button>
-      <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("income");setForm({});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#1D9E75",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(29,158,117,0.6)",cursor:"pointer"}}>
-        <i className="ti ti-plus" style={{fontSize:17}}/> Income
-      </button>
-    </div>
+      {/* Global floating add buttons */}
+      <div style={{position:"fixed",bottom:24,left:0,right:0,display:"flex",gap:12,justifyContent:"center",zIndex:500,pointerEvents:"none"}}>
+        <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("expense");setForm({category:"Food",payType:"Card"});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#F4845F",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(244,132,95,0.6)",cursor:"pointer"}}>
+          <i className="ti ti-plus" style={{fontSize:17}}/> Expense
+        </button>
+        <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("income");setForm({});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#1D9E75",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(29,158,117,0.6)",cursor:"pointer"}}>
+          <i className="ti ti-plus" style={{fontSize:17}}/> Income
+        </button>
+      </div>
 
-    {/* Confirm delete overlay */}
-    {confirmDel&&(
-      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:"0 1rem"}}>
-        <div style={{background:"#fff",borderRadius:18,padding:"1.5rem",width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}}>
-          <div style={{width:48,height:48,borderRadius:14,background:"#FEE2E2",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
-            <i className="ti ti-trash" style={{fontSize:24,color:"#DC2626"}}/>
-          </div>
-          <div style={{textAlign:"center",fontWeight:500,fontSize:16,color:"#1A1A2E",marginBottom:8}}>Delete this entry?</div>
-          <div style={{textAlign:"center",fontSize:13,color:"#4A4A6A",marginBottom:20,lineHeight:1.5}}>
-            <strong>{confirmDel.label}</strong> will be permanently deleted.
-          </div>
-          <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:"1.5px solid #D0D0D0",background:"#fff",color:"#4A4A6A",fontSize:14,fontWeight:500}}>Cancel</button>
-            <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"#DC2626",color:"#fff",fontSize:14,fontWeight:500}}>Yes, delete</button>
+      {/* Confirm delete overlay */}
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:"0 1rem"}}>
+          <div style={{background:"#fff",borderRadius:18,padding:"1.5rem",width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}}>
+            <div style={{width:48,height:48,borderRadius:14,background:"#FEE2E2",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <i className="ti ti-trash" style={{fontSize:24,color:"#DC2626"}}/>
+            </div>
+            <div style={{textAlign:"center",fontWeight:500,fontSize:16,color:"#1A1A2E",marginBottom:8}}>Delete this entry?</div>
+            <div style={{textAlign:"center",fontSize:13,color:"#4A4A6A",marginBottom:20,lineHeight:1.5}}>
+              <strong>{confirmDel.label}</strong> will be permanently deleted.
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:"1.5px solid #D0D0D0",background:"#fff",color:"#4A4A6A",fontSize:14,fontWeight:500}}>Cancel</button>
+              <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"#DC2626",color:"#fff",fontSize:14,fontWeight:500}}>Yes, delete</button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-    </>
+      )}
+    </div>
   );
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
