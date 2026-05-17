@@ -1543,15 +1543,17 @@ function App(){
         </div>
       )}
 
-      {/* Global floating add buttons */}
-      <div style={{position:"fixed",bottom:24,left:0,right:0,display:"flex",gap:12,justifyContent:"center",zIndex:500,pointerEvents:"none"}}>
-        <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("expense");setForm({category:"Food",payType:"Card"});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#F4845F",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(244,132,95,0.6)",cursor:"pointer"}}>
-          <i className="ti ti-plus" style={{fontSize:17}}/> Expense
-        </button>
-        <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("income");setForm({});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#1D9E75",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(29,158,117,0.6)",cursor:"pointer"}}>
-          <i className="ti ti-plus" style={{fontSize:17}}/> Income
-        </button>
-      </div>
+      {/* Global floating add buttons - hidden when any modal is open */}
+      {!modal&&!confirmDel&&(
+        <div style={{position:"fixed",bottom:24,left:0,right:0,display:"flex",gap:12,justifyContent:"center",zIndex:500,pointerEvents:"none"}}>
+          <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("expense");setForm({category:"Food",payType:"Card"});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#F4845F",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(244,132,95,0.6)",cursor:"pointer"}}>
+            <i className="ti ti-plus" style={{fontSize:17}}/> Expense
+          </button>
+          <button onClick={()=>{setView("monthly");setTimeout(()=>{setModal("income");setForm({});},50);}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:8,padding:"13px 24px",borderRadius:50,border:"none",background:"#1D9E75",color:"#fff",fontWeight:600,fontSize:14,boxShadow:"0 6px 24px rgba(29,158,117,0.6)",cursor:"pointer"}}>
+            <i className="ti ti-plus" style={{fontSize:17}}/> Income
+          </button>
+        </div>
+      )}
 
       {/* Confirm delete overlay */}
       {confirmDel&&(
