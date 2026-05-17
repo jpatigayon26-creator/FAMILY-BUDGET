@@ -206,6 +206,24 @@ function App(){
 
   const showToast=(msg,color=C.teal)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
 
+  // Lock body scroll when modal open — prevents scroll-to-top on input focus
+  useEffect(()=>{
+    if(modal){
+      document.body.style.overflow='hidden';
+      document.body.style.position='fixed';
+      document.body.style.width='100%';
+    } else {
+      document.body.style.overflow='';
+      document.body.style.position='';
+      document.body.style.width='';
+    }
+    return()=>{
+      document.body.style.overflow='';
+      document.body.style.position='';
+      document.body.style.width='';
+    };
+  },[modal]);
+
   const fetchRate=useCallback(async()=>{
     setRateLoading(true);
     try{
