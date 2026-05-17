@@ -129,6 +129,24 @@ function PieChart({data}){
   );
 }
 
+// Isolated input — wrapped in memo so parent re-renders never affect it
+// key prop from parent resets it when month changes
+const StableInput=React.memo(function StableInput({initialValue,onSave,placeholder,style}){
+  const[val,setVal]=React.useState(()=>initialValue!=null?String(initialValue):"");
+  const onSaveRef=React.useRef(onSave);
+  onSaveRef.current=onSave;
+  return React.createElement("input",{
+    type:"text",
+    inputMode:"decimal",
+    pattern:"[0-9]*",
+    value:val,
+    placeholder:placeholder||"0.00",
+    style:style,
+    onChange:e=>setVal(e.target.value),
+    onBlur:e=>onSaveRef.current(e.target.value),
+  });
+},()=>true); // always skip re-render — key prop handles resets
+
 function App(){
   const[view,setView]=useState("dashboard");
   const[selMonth,setSelMonth]=useState(3); // 1-based: Jan=1,Feb=2,Mar=3,Apr=4,May=5
@@ -148,6 +166,14 @@ function App(){
   const[selectedIds,setSelectedIds]=useState({exp:new Set(),inc:new Set(),bdo:new Set()});
   const[selectMode,setSelectMode]=useState(false);
   const[isOnline,setIsOnline]=useState(navigator.onLine);
+  const[groceryList,setGroceryList]=useState(()=>{
+    try{const g=localStorage.getItem("grocery_list");return g?JSON.parse(g):[];}catch{return[];}
+  });
+  const[groceryForm,setGroceryForm]=useState({name:"",amount:"",category:"Grocery",payType:"Card"});
+  const saveGrocery=(list)=>{
+    try{localStorage.setItem("grocery_list",JSON.stringify(list));}catch{}
+    setGroceryList(list);
+  };
   const[queue,setQueue]=useState(()=>{
     try{const q=localStorage.getItem("budget_queue");return q?JSON.parse(q):[];}
     catch{return[];}
@@ -439,6 +465,9 @@ function App(){
     setSyncing(false);
   };
 
+  const[confirmDel,setConfirmDel]=useState(null); // {type,id,label}
+  const confirmAndDel=(type,id,label)=>setConfirmDel({type,id,label});
+  const execDel=async()=>{\n    if(!confirmDel)return;\n    const{type,id}=confirmDel;\n    setConfirmDel(null);\n    if(type===\"exp\"){setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);}\n    else if(type===\"inc\"){setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);}\n    else if(type===\"bdo\"){setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);}\n  };
   const delExp=async(id)=>{setExpenses(prev=>prev.filter(e=>e.id!==id));await db.del("expenses",`?id=eq.${id}`);showToast("Deleted",C.red);};
   const delInc=async(id)=>{setIncome(prev=>prev.filter(e=>e.id!==id));await db.del("income",`?id=eq.${id}`);showToast("Deleted",C.red);};
   const delBDO=async(id)=>{setBdoTx(prev=>prev.filter(e=>e.id!==id));await db.del("bdo_transactions",`?id=eq.${id}`);showToast("Deleted",C.red);};
@@ -626,7 +655,7 @@ function App(){
             </div>
           </div>
           <div style={{display:"flex",gap:3,background:C.navyDark,borderRadius:12,padding:4}}>
-            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"]].map(([label,icon,v])=>(
+            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"],["Grocery","ti-shopping-cart","grocery"]].map(([label,icon,v])=>(
               <button key={v} onClick={()=>setView(v)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 10px",borderRadius:9,background:view===v?C.coral:"transparent",color:view===v?C.white:"#9AAAC8",border:"none",fontWeight:view===v?500:400,fontSize:12}}>
                 <i className={`ti ${icon}`} aria-hidden="true" style={{fontSize:14}}/><span className="hide-mobile">{label}</span>
               </button>
@@ -856,17 +885,17 @@ function App(){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}} className="grid-2">
               <div>
                 <label style={lbl}><i className="ti ti-piggy-bank" aria-hidden="true" style={{color:C.purple,marginRight:4}}/>Savings set aside (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" defaultValue={ms.savings||""} onBlur={e=>updateMS({savings:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`sav-${selMonth}`} initialValue={ms.savings} onSave={v=>updateMS({savings:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Already deducted from income — display only</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-cash-banknote" aria-hidden="true" style={{color:C.amber,marginRight:4}}/>Withdraw amount (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" defaultValue={ms.withdraw||""} onBlur={e=>updateMS({withdraw:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`wd-${selMonth}`} initialValue={ms.withdraw} onSave={v=>updateMS({withdraw:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Deducted from income in balance</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-target" aria-hidden="true" style={{color:C.coral,marginRight:4}}/>Budget limit (AED)</label>
-                <input type="text" inputMode="decimal" pattern="[0-9]*" defaultValue={ms.budget_limit||""} onBlur={e=>updateMS({budget_limit:Number(e.target.value)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`bl-${selMonth}`} initialValue={ms.budget_limit} onSave={v=>updateMS({budget_limit:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
               </div>
 
             </div>
@@ -902,7 +931,7 @@ function App(){
             <PieChart data={catTotals}/>
           </Card>
 
-          {/* Action buttons */}
+          {/* Action buttons (inline, always visible) */}
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             {[[C.coral,"ti-plus","Add expense",()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}],[C.teal,"ti-plus","Add income",()=>{setModal("income");setForm({});}]].map(([bg,ic,label,fn])=>(
               <button key={label} onClick={fn} style={{flex:1,minWidth:130,padding:"13px",borderRadius:12,border:"none",background:bg,color:C.white,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
@@ -914,6 +943,16 @@ function App(){
             </button>
             <button onClick={()=>setModal("export")} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
               <i className="ti ti-file-spreadsheet" aria-hidden="true" style={{fontSize:17}}/>Export
+            </button>
+          </div>
+
+          {/* Sticky floating shortcut bar (follows scroll) */}
+          <div style={{position:"sticky",bottom:16,zIndex:150,display:"flex",gap:10,justifyContent:"center",pointerEvents:"none"}}>
+            <button onClick={()=>{setModal("expense");setForm({category:"Food",payType:"Card"});}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:7,padding:"12px 20px",borderRadius:50,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14,boxShadow:"0 4px 18px rgba(244,132,95,0.5)",whiteSpace:"nowrap"}}>
+              <i className="ti ti-plus" style={{fontSize:16}}/> Expense
+            </button>
+            <button onClick={()=>{setModal("income");setForm({});}} style={{pointerEvents:"all",display:"flex",alignItems:"center",gap:7,padding:"12px 20px",borderRadius:50,border:"none",background:C.teal,color:C.white,fontWeight:500,fontSize:14,boxShadow:"0 4px 18px rgba(29,158,117,0.5)",whiteSpace:"nowrap"}}>
+              <i className="ti ti-plus" style={{fontSize:16}}/> Income
             </button>
           </div>
 
@@ -1020,7 +1059,7 @@ function App(){
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:C.text}}>AED {Number(e.amount).toFixed(2)}</div>
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();delExp(e.id);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
@@ -1068,7 +1107,7 @@ function App(){
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontWeight:500,fontSize:13,color:C.teal}}>AED {Number(e.amount).toFixed(2)}</div>
-                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();delInc(e.id);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                     </div>
                   </div>
                 );})}
@@ -1180,7 +1219,7 @@ function App(){
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{e.tx_type==="deposit"?"+":"-"}PHP {Number(e.amount).toFixed(2)}</div>
                         {e.tx_type==="deposit"&&<div style={{fontSize:10,color:C.teal,marginTop:1}}>deposit</div>}
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();delBDO(e.id);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
@@ -1192,7 +1231,190 @@ function App(){
       )}
       </div>
 
-      {/* ── MODALS ── */}
+      {/* ── GROCERY LIST TAB ── */}
+      {view==="grocery"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+
+          {/* Summary card */}
+          {groceryList.length>0&&(()=>{
+            const total=groceryList.reduce((s,i)=>s+Number(i.amount||0),0);
+            const checked=groceryList.filter(i=>i.checked);
+            const checkedTotal=checked.reduce((s,i)=>s+Number(i.amount||0),0);
+            const cardTotal=groceryList.filter(i=>!i.checked&&i.payType==="Card").reduce((s,i)=>s+Number(i.amount||0),0);
+            const cashTotal=groceryList.filter(i=>!i.checked&&i.payType==="Cash On Hand").reduce((s,i)=>s+Number(i.amount||0),0);
+            return(
+              <Card>
+                <div style={{fontSize:11,fontWeight:500,color:C.textLight,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                  <i className="ti ti-shopping-cart" style={{color:C.teal,fontSize:14}}/> SHOPPING SUMMARY
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+                  <div style={{textAlign:"center",background:C.gray1,borderRadius:10,padding:"8px 4px"}}>
+                    <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>Total List</div>
+                    <div style={{fontSize:14,fontWeight:500,color:C.text}}>{fmtN(total,"AED")}</div>
+                  </div>
+                  <div style={{textAlign:"center",background:C.tealLight,borderRadius:10,padding:"8px 4px",border:`1px solid #A7D7C5`}}>
+                    <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>By Card</div>
+                    <div style={{fontSize:14,fontWeight:500,color:C.teal}}>{fmtN(cardTotal,"AED")}</div>
+                  </div>
+                  <div style={{textAlign:"center",background:C.amberLight,borderRadius:10,padding:"8px 4px",border:`1px solid #FDE68A`}}>
+                    <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>By Cash</div>
+                    <div style={{fontSize:14,fontWeight:500,color:"#92400E"}}>{fmtN(cashTotal,"AED")}</div>
+                  </div>
+                </div>
+                {checked.length>0&&(
+                  <div style={{background:C.tealLight,borderRadius:10,padding:"8px 12px",fontSize:12,color:C.tealDark,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <span>✅ {checked.length} item{checked.length>1?"s":""} done · {fmtN(checkedTotal,"AED")}</span>
+                    <button onClick={async()=>{
+                      const done=groceryList.filter(i=>i.checked);
+                      for(const item of done){
+                        const data={month:selMonth,amount:Number(item.amount),description:item.name,category:item.category,pay_type:item.payType,currency:"AED",date:new Date().toISOString().split("T")[0]};
+                        const tempId="tmp_"+Date.now()+Math.random();
+                        const tempItem={...data,id:tempId,_pending:true};
+                        setExpenses(prev=>[...prev,tempItem]);
+                        if(isOnline){
+                          try{
+                            const res=await db.post("expenses",data);
+                            if(Array.isArray(res)&&res[0])setExpenses(prev=>prev.map(e=>e.id===tempId?res[0]:e));
+                          }catch(e){saveQueue([...queue,{type:"expense",data,tempId}]);}
+                        } else {
+                          saveQueue([...queue,{type:"expense",data,tempId}]);
+                        }
+                      }
+                      saveGrocery(groceryList.filter(i=>!i.checked));
+                      showToast(`Added ${done.length} item${done.length>1?"s":""} to expenses!`,C.teal);
+                    }} style={{background:C.teal,color:C.white,border:"none",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:500}}>
+                      Add to expenses
+                    </button>
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
+
+          {/* Add item form */}
+          <Card>
+            <div style={{fontSize:11,fontWeight:500,color:C.textLight,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+              <i className="ti ti-plus" style={{color:C.coral,fontSize:14}}/> ADD ITEM
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <input
+                placeholder="Item name (e.g. Milk, Rice...)"
+                value={groceryForm.name}
+                onChange={e=>setGroceryForm(f=>({...f,name:e.target.value}))}
+                style={{...inp,flex:2,marginBottom:0}}
+              />
+              <input
+                type="text" inputMode="decimal" pattern="[0-9]*"
+                placeholder="AED"
+                value={groceryForm.amount}
+                onChange={e=>setGroceryForm(f=>({...f,amount:e.target.value}))}
+                style={{...inp,flex:1,marginBottom:0}}
+              />
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              {["Grocery","Food","Shopping","Other"].map(c=>{
+                const cm=CAT_META[c]||CAT_META.Other;
+                const sel=groceryForm.category===c;
+                return(
+                  <button key={c} onClick={()=>setGroceryForm(f=>({...f,category:c}))} style={{flex:1,padding:"7px 4px",borderRadius:9,border:`2px solid ${sel?cm.border:C.gray3}`,background:sel?cm.bg:C.white,cursor:"pointer",fontSize:10,color:sel?cm.text:C.textLight,fontWeight:sel?500:400}}>
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              {["Card","Cash On Hand"].map(t=>(
+                <button key={t} onClick={()=>setGroceryForm(f=>({...f,payType:t}))} style={{flex:1,padding:"8px",borderRadius:9,border:`2px solid ${groceryForm.payType===t?C.navy:C.gray3}`,background:groceryForm.payType===t?C.navy:C.white,color:groceryForm.payType===t?C.white:C.textMid,fontSize:12,fontWeight:groceryForm.payType===t?500:400}}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>{
+              if(!groceryForm.name)return;
+              const item={id:"g_"+Date.now(),name:groceryForm.name,amount:groceryForm.amount||"0",category:groceryForm.category,payType:groceryForm.payType,checked:false};
+              saveGrocery([...groceryList,item]);
+              setGroceryForm(f=>({...f,name:"",amount:""}));
+            }} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>
+              + Add to list
+            </button>
+          </Card>
+
+          {/* Grocery list */}
+          {groceryList.length===0?(
+            <Card>
+              <div style={{textAlign:"center",padding:"2rem 1rem",color:C.textLight}}>
+                <i className="ti ti-shopping-cart" style={{fontSize:36,display:"block",marginBottom:10,color:C.gray3}}/>
+                <div style={{fontSize:14,marginBottom:4}}>Your list is empty</div>
+                <div style={{fontSize:12}}>Add items above to start your grocery list</div>
+              </div>
+            </Card>
+          ):(
+            <Card>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:500,color:C.textLight,display:"flex",alignItems:"center",gap:6}}>
+                  <i className="ti ti-list" style={{fontSize:14}}/> LIST ({groceryList.length} items)
+                </div>
+                <button onClick={()=>saveGrocery([])} style={{fontSize:11,color:C.red,background:"none",border:"none",padding:0}}>
+                  Clear all
+                </button>
+              </div>
+              {groceryList.map(item=>{
+                const cm=CAT_META[item.category]||CAT_META.Other;
+                return(
+                  <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.gray2}`,opacity:item.checked?0.5:1}}>
+                    {/* Checkbox */}
+                    <button onClick={()=>saveGrocery(groceryList.map(i=>i.id===item.id?{...i,checked:!i.checked}:i))}
+                      style={{width:24,height:24,borderRadius:7,border:`2px solid ${item.checked?C.teal:C.gray3}`,background:item.checked?C.teal:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      {item.checked&&<i className="ti ti-check" style={{fontSize:11,color:C.white}}/>}
+                    </button>
+                    {/* Category icon */}
+                    <div style={{width:32,height:32,borderRadius:9,background:cm.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1.5px solid ${cm.border}`}}>
+                      <i className={`ti ${cm.icon}`} style={{fontSize:13,color:cm.text}}/>
+                    </div>
+                    {/* Name + pay type */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:500,color:C.text,textDecoration:item.checked?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+                      <div style={{fontSize:10,color:C.textLight,marginTop:2}}>
+                        <span style={{background:item.payType==="Card"?C.navyLight:C.amberLight,color:item.payType==="Card"?C.white:"#92400E",padding:"1px 6px",borderRadius:5,fontSize:9}}>{item.payType}</span>
+                        {" · "}{item.category}
+                      </div>
+                    </div>
+                    {/* Amount + delete */}
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:500,color:C.text}}>{Number(item.amount)>0?fmtN(Number(item.amount),"AED"):"—"}</div>
+                      <button onClick={()=>saveGrocery(groceryList.filter(i=>i.id!==item.id))} style={{background:"none",border:"none",color:C.gray3,fontSize:13,padding:"2px 0"}}>
+                        <i className="ti ti-trash"/>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          )}
+
+        </div>
+      )}
+
+
+      {/* ── CONFIRM DELETE OVERLAY ── */}
+      {confirmDel&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,padding:"0 1rem"}}>
+          <div style={{background:C.white,borderRadius:18,padding:"1.5rem",width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}}>
+            <div style={{width:48,height:48,borderRadius:14,background:C.redLight,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <i className="ti ti-trash" style={{fontSize:24,color:C.red}}/>
+            </div>
+            <div style={{textAlign:"center",fontWeight:500,fontSize:16,color:C.text,marginBottom:8}}>Delete this entry?</div>
+            <div style={{textAlign:"center",fontSize:13,color:C.textMid,marginBottom:20,lineHeight:1.5}}>
+              "<strong>{confirmDel.label}</strong>" will be permanently deleted and cannot be undone.
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14,fontWeight:500}}>Cancel</button>
+              <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:C.red,color:C.white,fontSize:14,fontWeight:500}}>Yes, delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modal&&(
         <div onClick={e=>{if(e.target===e.currentTarget){setModal(null);setForm({});}}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:200}}>
           <div style={{background:C.white,borderRadius:"20px 20px 0 0",padding:"1.5rem",width:"100%",maxWidth:500,maxHeight:"92vh",overflowY:"auto"}}>
