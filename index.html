@@ -146,7 +146,7 @@ const StableInput=React.memo(function StableInput({initialValue,onSave,placehold
     onChange:e=>!disabled&&setVal(e.target.value),
     onBlur:e=>!disabled&&onSaveRef.current(e.target.value),
   });
-},()=>true); // always skip re-render — key prop handles resets
+},(prev,next)=>prev.disabled===next.disabled); // only re-render when disabled changes
 
 const inp={width:"100%",boxSizing:"border-box",marginBottom:10,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"9px 12px",fontSize:14,background:C.white,color:C.text};
 const lbl={fontSize:12,color:C.textMid,display:"block",marginBottom:4,fontWeight:500};
@@ -204,12 +204,20 @@ function App(){
   const[lockedMonths,setLockedMonths]=useState(()=>{
     try{const l=localStorage.getItem("locked_months");return l?JSON.parse(l):[];}catch{return[];}
   });
+  const[unlockPrompt,setUnlockPrompt]=useState(null); // month number pending unlock
   const toggleLock=(month)=>{
     const locked=lockedMonths.includes(month);
-    if(locked){if(!window.confirm("Unlock this month? You will be able to edit its data."))return;}
-    const updated=locked?lockedMonths.filter(m=>m!==month):[...lockedMonths,month];
+    if(locked){setUnlockPrompt(month);return;}
+    const updated=[...lockedMonths,month];
     try{localStorage.setItem("locked_months",JSON.stringify(updated));}catch{}
     setLockedMonths(updated);
+  };
+  const confirmUnlock=()=>{
+    if(!unlockPrompt)return;
+    const updated=lockedMonths.filter(m=>m!==unlockPrompt);
+    try{localStorage.setItem("locked_months",JSON.stringify(updated));}catch{}
+    setLockedMonths(updated);
+    setUnlockPrompt(null);
   };
   const saveGrocery=(list)=>{
     try{localStorage.setItem("grocery_list",JSON.stringify(list));}catch{}
@@ -1602,6 +1610,31 @@ function App(){
             <div style={{display:"flex",gap:10}}>
               <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:"1.5px solid #D0D0D0",background:"#fff",color:"#4A4A6A",fontSize:14,fontWeight:500}}>Cancel</button>
               <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"#DC2626",color:"#fff",fontSize:14,fontWeight:500}}>Yes, delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlock month confirmation modal */}
+      {unlockPrompt&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:"0 1rem"}}>
+          <div style={{background:C.white,borderRadius:20,padding:"1.75rem",width:"100%",maxWidth:360,boxShadow:"0 12px 40px rgba(0,0,0,0.25)"}}>
+            <div style={{width:52,height:52,borderRadius:16,background:"#FFF8E7",border:"1.5px solid "+C.amber,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <i className="ti ti-lock-open" style={{fontSize:26,color:C.amber}}/>
+            </div>
+            <div style={{textAlign:"center",fontWeight:600,fontSize:17,color:C.text,marginBottom:8}}>
+              Unlock {MONTHS[unlockPrompt-1]}?
+            </div>
+            <div style={{textAlign:"center",fontSize:13,color:C.textMid,marginBottom:24,lineHeight:1.6}}>
+              This will allow editing of expenses, income, BDO transactions and month settings for <strong>{MONTHS[unlockPrompt-1]}</strong>.
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setUnlockPrompt(null)} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14,fontWeight:500}}>
+                Cancel
+              </button>
+              <button onClick={confirmUnlock} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.amber,color:"#fff",fontSize:14,fontWeight:600}}>
+                Yes, Unlock
+              </button>
             </div>
           </div>
         </div>
