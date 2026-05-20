@@ -972,9 +972,9 @@ function App(){
 
           {/* Action buttons */}
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+            {!isMonthLocked&&<button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className={`ti ${selectMode?"ti-x":"ti-select"}`} aria-hidden="true" style={{fontSize:17}}/>{selectMode?"Cancel":"Select"}
-            </button>
+            </button>}
             <button onClick={()=>setModal("export")} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className="ti ti-file-spreadsheet" aria-hidden="true" style={{fontSize:17}}/>Export
             </button>
@@ -1059,6 +1059,14 @@ function App(){
               </div>
             ):(
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                {selectMode&&filteredExp.length>0&&(
+                  <div onClick={()=>allExpSel?setSelectedIds(prev=>({...prev,exp:new Set()})):selectAllExp(filteredExp.map(e=>e.id))} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:10,border:`1.5px dashed ${allExpSel?C.red:C.gray3}`,background:allExpSel?C.redLight:C.gray2,cursor:"pointer",marginBottom:4}}>
+                    <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${allExpSel?C.red:C.gray3}`,background:allExpSel?C.red:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      {allExpSel&&<i className="ti ti-check" style={{fontSize:12,color:C.white}}/>}
+                    </div>
+                    <span style={{fontSize:12,fontWeight:500,color:allExpSel?C.red:C.textMid}}>{allExpSel?"Deselect all":"Select all"} expenses ({filteredExp.length})</span>
+                  </div>
+                )}
                 {filteredExp.map(e=>{
                   const cm=CAT_META[e.category]||CAT_META.Other;
                   const isSel=selectedIds.exp.has(e.id);
@@ -1200,9 +1208,9 @@ function App(){
             <button onClick={()=>{if(!isMonthLocked){setModal("bdo");setForm({category:"Bills"});}}} disabled={isMonthLocked} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:isMonthLocked?C.gray3:C.navy,color:C.white,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7,opacity:isMonthLocked?0.5:1,cursor:isMonthLocked?"not-allowed":"pointer"}}>
               <i className="ti ti-plus" aria-hidden="true" style={{fontSize:17}}/> Add BDO Transaction
             </button>
-            <button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
+            {!isMonthLocked&&<button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
               <i className={`ti ${selectMode?"ti-x":"ti-select"}`} aria-hidden="true" style={{fontSize:17}}/>{selectMode?"Cancel":"Select"}
-            </button>
+            </button>}
           </div>
           {/* Floating delete bar for BDO */}
           {selectMode&&(
