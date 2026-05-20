@@ -131,7 +131,7 @@ function PieChart({data}){
 
 // Isolated input — wrapped in memo so parent re-renders never affect it
 // key prop from parent resets it when month changes
-const StableInput=React.memo(function StableInput({initialValue,onSave,placeholder,style}){
+const StableInput=React.memo(function StableInput({initialValue,onSave,placeholder,style,disabled}){
   const[val,setVal]=React.useState(()=>initialValue!=null?String(initialValue):"");
   const onSaveRef=React.useRef(onSave);
   onSaveRef.current=onSave;
@@ -141,9 +141,10 @@ const StableInput=React.memo(function StableInput({initialValue,onSave,placehold
     pattern:"[0-9]*",
     value:val,
     placeholder:placeholder||"0.00",
-    style:style,
-    onChange:e=>setVal(e.target.value),
-    onBlur:e=>onSaveRef.current(e.target.value),
+    disabled:!!disabled,
+    style:{...style,...(disabled?{background:"#F3F4F6",color:"#9CA3AF",cursor:"not-allowed",opacity:0.7}:{})},
+    onChange:e=>!disabled&&setVal(e.target.value),
+    onBlur:e=>!disabled&&onSaveRef.current(e.target.value),
   });
 },()=>true); // always skip re-render — key prop handles resets
 
@@ -915,17 +916,17 @@ function App(){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}} className="grid-2">
               <div>
                 <label style={lbl}><i className="ti ti-piggy-bank" aria-hidden="true" style={{color:C.purple,marginRight:4}}/>Savings set aside (AED)</label>
-                <StableInput key={`sav-${selMonth}`} initialValue={ms.savings} onSave={v=>updateMS({savings:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`sav-${selMonth}`} initialValue={ms.savings} onSave={v=>updateMS({savings:Number(v)})} placeholder="0.00" disabled={isMonthLocked} style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Already deducted from income — display only</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-cash-banknote" aria-hidden="true" style={{color:C.amber,marginRight:4}}/>Withdraw amount (AED)</label>
-                <StableInput key={`wd-${selMonth}`} initialValue={ms.withdraw} onSave={v=>updateMS({withdraw:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`wd-${selMonth}`} initialValue={ms.withdraw} onSave={v=>updateMS({withdraw:Number(v)})} placeholder="0.00" disabled={isMonthLocked} style={{...inp,marginBottom:0}}/>
                 <div style={{fontSize:10,color:C.textLight,marginTop:3}}>Deducted from income in balance</div>
               </div>
               <div>
                 <label style={lbl}><i className="ti ti-target" aria-hidden="true" style={{color:C.coral,marginRight:4}}/>Budget limit (AED)</label>
-                <StableInput key={`bl-${selMonth}`} initialValue={ms.budget_limit} onSave={v=>updateMS({budget_limit:Number(v)})} placeholder="0.00" style={{...inp,marginBottom:0}}/>
+                <StableInput key={`bl-${selMonth}`} initialValue={ms.budget_limit} onSave={v=>updateMS({budget_limit:Number(v)})} placeholder="0.00" disabled={isMonthLocked} style={{...inp,marginBottom:0}}/>
               </div>
 
             </div>
@@ -1074,7 +1075,7 @@ function App(){
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:C.text}}>AED {Number(e.amount).toFixed(2)}</div>
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
@@ -1122,7 +1123,7 @@ function App(){
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontWeight:500,fontSize:13,color:C.teal}}>AED {Number(e.amount).toFixed(2)}</div>
-                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                     </div>
                   </div>
                 );})}
@@ -1150,7 +1151,15 @@ function App(){
             <button onClick={()=>setSelMonth(m=>Math.min(11,m+1))} disabled={selMonth===11} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${C.gray3}`,background:C.white,color:C.text,opacity:selMonth===11?0.35:1,flexShrink:0}}>
               <i className="ti ti-chevron-right" aria-hidden="true" style={{fontSize:18,color:C.text}}/>
             </button>
+            <button onClick={()=>toggleLock(selMonth)} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${isMonthLocked?C.amber:C.gray3}`,background:isMonthLocked?"#FFF8E7":C.white,color:isMonthLocked?C.amber:C.textLight,flexShrink:0}} title={isMonthLocked?"Unlock month":"Lock month"}>
+              <i className={`ti ${isMonthLocked?"ti-lock":"ti-lock-open"}`} style={{fontSize:17}}/>
+            </button>
           </div>
+          {isMonthLocked&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,background:"#FFF8E7",border:"1.5px solid "+C.amber,borderRadius:12,padding:"10px 14px",fontSize:13,color:C.amber,fontWeight:500}}>
+              <i className="ti ti-lock" style={{fontSize:16}}/> This month is locked. Tap the lock icon to unlock and edit.
+            </div>
+          )}
 
 
           {/* BDO summary */}
@@ -1180,7 +1189,7 @@ function App(){
           </div>
 
           <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>{setModal("bdo");setForm({category:"Bills"});}} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.navy,color:C.white,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+            <button onClick={()=>{if(!isMonthLocked){setModal("bdo");setForm({category:"Bills"});}}} disabled={isMonthLocked} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:isMonthLocked?C.gray3:C.navy,color:C.white,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7,opacity:isMonthLocked?0.5:1,cursor:isMonthLocked?"not-allowed":"pointer"}}>
               <i className="ti ti-plus" aria-hidden="true" style={{fontSize:17}}/> Add BDO Transaction
             </button>
             <button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",gap:7}}>
@@ -1235,7 +1244,7 @@ function App(){
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{e.tx_type==="deposit"?"+":"-"}PHP {Number(e.amount).toFixed(2)}</div>
                         {e.tx_type==="deposit"&&<div style={{fontSize:10,color:C.teal,marginTop:1}}>deposit</div>}
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,padding:"2px 0",marginTop:2}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
