@@ -617,77 +617,6 @@ function App(){
     }catch(e){showToast("Save error",C.red);}
   };
 
-  const importMayCardExpenses=async()=>{
-    if(!window.confirm("This will insert all May (and April 29) Card expenses into the database. Continue?"))return;
-    const rows=[
-      {month:5,date:"2026-05-01",amount:408.61,description:"Mother/ Skye/Loan",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-01",amount:3500.00,description:"Rent",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-01",amount:945.97,description:"Tabby",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-01",amount:300.00,description:"Carlift",category:"Transportation",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-01",amount:54.00,description:"Wingstop",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-02",amount:14.00,description:"Bread and Coffee",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-02",amount:30.20,description:"Smart Baby",category:"Shopping",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-02",amount:26.00,description:"Brand For Less",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-03",amount:53.10,description:"WestZone",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-03",amount:27.15,description:"Noon-Grocery",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-04",amount:29.15,description:"Talabat-Loan",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-04",amount:15.00,description:"Shawarma",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-04",amount:5.00,description:"Panadero",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-04",amount:17.98,description:"Centro",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-05",amount:19.00,description:"Cassava Cake",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-05",amount:15.75,description:"Documents Parcel",category:"Other",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-05",amount:20.00,description:"Milktea",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-06",amount:6.00,description:"Paratha",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-08",amount:5.00,description:"Panadero",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-08",amount:10.00,description:"Panadero",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-09",amount:54.00,description:"Wingstop",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-09",amount:25.00,description:"Tim Hortons",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-09",amount:154.00,description:"PizzaHut",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-09",amount:20.00,description:"NolCard",category:"Transportation",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:130.50,description:"Centro-Grocery",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:140.26,description:"Mother's Day Love Gift",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:1.50,description:"Chai",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:36.68,description:"Serum",category:"Shopping",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:112.24,description:"Westzone",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:10.00,description:"Haircut",category:"Other",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:150.00,description:"Salon",category:"Other",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:10.64,description:"Gala",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-10",amount:5.00,description:"Ice/Sili",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-12",amount:200.00,description:"Tabby Downpayment",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-13",amount:82.70,description:"Mumuso",category:"Shopping",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-13",amount:24.00,description:"Boba",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:25.00,description:"Tim Hortons",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:177.75,description:"Ejari",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:337.50,description:"Harkaran-payment",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:14.00,description:"Spynnes",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:25.00,description:"Tim Hortons",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:79.92,description:"Claude Subs",category:"Bills",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:14.71,description:"Families",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-14",amount:17.50,description:"Coppins",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-16",amount:62.00,description:"Dinner - Burjuman",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-17",amount:10.00,description:"Panadero",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-17",amount:30.00,description:"Coppins",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-17",amount:110.00,description:"Westzone",category:"Grocery",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-18",amount:70.00,description:"Volga",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-18",amount:41.33,description:"Tabby-Angel",category:"Shopping",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-19",amount:48.00,description:"Coffee",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-19",amount:14.00,description:"Pansit - Cityfresh",category:"Food",pay_type:"Card",currency:"AED"},
-      {month:5,date:"2026-05-19",amount:20.00,description:"Massage Chair",category:"Bills",pay_type:"Card",currency:"AED"},
-    ];
-    let inserted=0;
-    let failed=0;
-    showToast("Importing "+rows.length+" entries...",C.navy);
-    for(const row of rows){
-      try{
-        const res=await db.post("expenses",row);
-        if(Array.isArray(res)&&res[0]){
-          setExpenses(prev=>[...prev,res[0]]);
-          inserted++;
-        } else{failed++;}
-      }catch(e){failed++;}
-    }
-    showToast(`Done! ${inserted} added${failed>0?`, ${failed} failed`:""}`,inserted>0?C.teal:C.red);
-  };
 
   const updateSavings=async(field,val)=>{
     setSavingsState(prev=>({...prev,[field]:Number(val)}));
@@ -845,7 +774,15 @@ function App(){
             <button onClick={()=>setSelMonth(m=>Math.min(11,m+1))} disabled={selMonth===11} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${C.gray3}`,background:C.white,color:C.text,opacity:selMonth===11?0.35:1,flexShrink:0}}>
               <i className="ti ti-chevron-right" aria-hidden="true" style={{fontSize:18,color:C.text}}/>
             </button>
+            <button onClick={()=>toggleLock(selMonth)} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${isMonthLocked?C.amber:C.gray3}`,background:isMonthLocked?"#FFF8E7":C.white,color:isMonthLocked?C.amber:C.textLight,flexShrink:0}} title={isMonthLocked?"Unlock month":"Lock month"}>
+              <i className={`ti ${isMonthLocked?"ti-lock":"ti-lock-open"}`} style={{fontSize:17}}/>
+            </button>
           </div>
+          {isMonthLocked&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,background:"#FFF8E7",border:"1.5px solid "+C.amber,borderRadius:12,padding:"10px 14px",fontSize:13,color:C.amber,fontWeight:500}}>
+              <i className="ti ti-lock" style={{fontSize:16}}/> This month is locked. Tap the lock icon to unlock and edit.
+            </div>
+          )}
 
           {/* Overspend alert */}
           {overspent&&(
@@ -1213,20 +1150,8 @@ function App(){
             <button onClick={()=>setSelMonth(m=>Math.min(11,m+1))} disabled={selMonth===11} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${C.gray3}`,background:C.white,color:C.text,opacity:selMonth===11?0.35:1,flexShrink:0}}>
               <i className="ti ti-chevron-right" aria-hidden="true" style={{fontSize:18,color:C.text}}/>
             </button>
-            <button onClick={()=>toggleLock(selMonth)} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${isMonthLocked?C.amber:C.gray3}`,background:isMonthLocked?"#FFF8E7":C.white,color:isMonthLocked?C.amber:C.textLight,flexShrink:0}} title={isMonthLocked?"Unlock month":"Lock month"}>
-              <i className={`ti ${isMonthLocked?"ti-lock":"ti-lock-open"}`} style={{fontSize:17}}/>
-            </button>
           </div>
-          {isMonthLocked&&(
-            <div style={{display:"flex",alignItems:"center",gap:8,background:"#FFF8E7",border:"1.5px solid "+C.amber,borderRadius:12,padding:"10px 14px",fontSize:13,color:C.amber,fontWeight:500}}>
-              <i className="ti ti-lock" style={{fontSize:16}}/> This month is locked. Tap the lock icon to unlock and edit.
-            </div>
-          )}
 
-          {/* One-time import button — remove after use */}
-          <button onClick={importMayCardExpenses} style={{width:"100%",padding:"12px",borderRadius:12,border:"1.5px dashed "+C.teal,background:"#E8F8F3",color:C.teal,fontWeight:500,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            <i className="ti ti-file-import" style={{fontSize:16}}/> Import May Card Expenses (52 entries) — tap once then remove
-          </button>
 
           {/* BDO summary */}
           <div style={{background:C.navyDark,borderRadius:18,padding:"1.5rem"}}>
