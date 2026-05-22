@@ -180,45 +180,26 @@ const PB=({pct})=>{
 
 function App(){
   const[view,setView]=useState("dashboard");
-  const[bibleVerse,setBibleVerse]=useState(null);
-  const[verseLoading,setVerseLoading]=useState(false);
-  const fetchBibleVerse=async(force=false)=>{
-    const today=new Date().toISOString().slice(0,10);
-    try{
-      const cached=localStorage.getItem("bible_verse");
-      if(cached&&!force){
-        const p=JSON.parse(cached);
-        if(p.date===today){setBibleVerse(p);return;}
-      }
-    }catch{}
-    setVerseLoading(true);
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:400,
-          messages:[{role:"user",content:`Give me one Bible verse related to finances, stewardship, generosity, or saving. 
-Respond ONLY in this exact JSON format (no markdown, no extra text):
-{
-  "reference": "Book Chapter:Verse",
-  "english": "Full verse text in English",
-  "tagalog": "Full verse text in Filipino/Tagalog",
-  "reflection": "A short 1-2 sentence reflection on how this applies to managing our family finances."
-}`}]
-        })
-      });
-      const d=await res.json();
-      const text=d.content?.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
-      const verse=JSON.parse(text);
-      verse.date=today;
-      try{localStorage.setItem("bible_verse",JSON.stringify(verse));}catch{}
-      setBibleVerse(verse);
-    }catch(e){console.error(e);}
-    setVerseLoading(false);
+  const VERSES=[
+    {reference:"Proverbs 3:9-10",english:"Honor the Lord with your wealth and with the firstfruits of all your produce; then your barns will be filled with plenty, and your vats will be bursting with wine.",tagalog:"Parangalan mo ang Panginoon sa iyong kayamanan, at sa mga unang bunga ng lahat ng iyong ani; at mapupuno ang iyong mga kamalig ng kasaganaan.",reflection:"Putting God first in our finances opens the door to His provision and blessing over our family."},
+    {reference:"Luke 16:10",english:"Whoever is faithful in very little is also faithful in much, and whoever is dishonest in very little is also dishonest in much.",tagalog:"Ang tapat sa kakaunti ay tapat din sa marami; at ang hindi tapat sa kakaunti ay hindi rin tapat sa marami.",reflection:"Every small expense we track faithfully builds the habit of stewardship over greater blessings."},
+    {reference:"Philippians 4:19",english:"And my God will supply every need of yours according to his riches in glory in Christ Jesus.",tagalog:"At ang aking Dios ay magbibigay ng lahat ng inyong kailangan ayon sa Kaniyang mga kayamanan sa kaluwalhatian kay Cristo Jesus.",reflection:"We budget and plan, but we trust God to supply what we cannot provide ourselves."},
+    {reference:"Matthew 6:33",english:"But seek first the kingdom of God and his righteousness, and all these things will be added to you.",tagalog:"Ngunit hanapin muna ninyo ang kaharian ng Dios at ang Kaniyang katuwiran, at ang lahat ng mga bagay na ito ay idadagdag sa inyo.",reflection:"When we prioritize what matters to God, He takes care of what matters to us."},
+    {reference:"Proverbs 21:20",english:"Precious treasure and oil are in a wise man's dwelling, but a foolish man devours it.",tagalog:"May mahalagang kayamanan at langis sa tirahan ng marunong; ngunit lulunukin ito ng mangmang na tao.",reflection:"Saving and budgeting wisely is not greed — it is wisdom that honors God and protects your family."},
+    {reference:"Ecclesiastes 5:10",english:"Whoever loves money never has enough; whoever loves wealth is never satisfied with their income.",tagalog:"Ang umiibig sa salapi ay hindi mabubusog ng salapi; ni ang umiibig sa kasaganaan ay hindi mabubusog ng kita.",reflection:"Contentment is a spiritual discipline. Let our budget reflect gratitude, not craving."},
+    {reference:"Proverbs 22:7",english:"The rich rules over the poor, and the borrower is the slave of the lender.",tagalog:"Ang mayaman ay naghahari sa mahirap, at ang nangungutang ay alipin ng nagpapautang.",reflection:"Staying out of unnecessary debt is one of the greatest acts of financial freedom."},
+    {reference:"Deuteronomy 8:18",english:"You shall remember the Lord your God, for it is he who gives you power to get wealth.",tagalog:"Alalahanin mo ang Panginoon mong Dios, sapagkat siya ang nagbibigay sa iyo ng lakas upang makakuha ng kayamanan.",reflection:"Every AED we earn is a gift. Our budget is our thank-you letter back to God."},
+    {reference:"1 Timothy 6:17",english:"Command those who are rich in this present world not to be arrogant nor to put their hope in wealth, which is so uncertain, but to put their hope in God.",tagalog:"Pagbilinan mo ang mga mayayaman sa sanglibutang ito na huwag magmataas, ni umasa sa kayamanang walang katiyakan, kundi sa Dios.",reflection:"Wealth is a tool, not a foundation. Our security rests in God, not our bank balance."},
+    {reference:"Proverbs 13:11",english:"Wealth gained hastily will dwindle, but whoever gathers little by little will increase it.",tagalog:"Ang kayamanang nakuha nang nagmamadali ay mababawasan; ngunit ang nagtitipon nang paunti-unti ay lalago.",reflection:"Slow, steady saving — even small amounts each month — is God's principle for lasting wealth."},
+    {reference:"Luke 12:15",english:"Take care, and be on your guard against all covetousness, for one's life does not consist in the abundance of his possessions.",tagalog:"Mag-ingat at magsipagingat laban sa lahat ng kasakiman; sapagkat ang buhay ng tao ay hindi binubuo ng kasaganaan ng kaniyang mga pag-aari.",reflection:"Life's richness is found in relationships and faith, not in what we accumulate."},
+    {reference:"Malachi 3:10",english:"Bring the full tithe into the storehouse, that there may be food in my house. And thereby put me to the test, says the Lord of hosts, if I will not open the windows of heaven for you.",tagalog:"Dalhin ninyo ang buong ikasampung bahagi sa imbakan, nang may pagkain sa Aking bahay; at subukan ninyo Ako ngayon sa bagay na ito, sabi ng Panginoon.",reflection:"Generosity is an act of faith. Trust God with your giving and watch Him provide in ways you cannot plan for."},
+  ];
+  const getDailyVerse=()=>{
+    const day=Math.floor(Date.now()/86400000);
+    return VERSES[day%VERSES.length];
   };
-  React.useEffect(()=>{fetchBibleVerse();},[]);
+  const[bibleVerse,setBibleVerse]=useState(getDailyVerse);
+  const[verseLoading]=useState(false);
   const[selMonth,setSelMonth]=useState(new Date().getMonth()+1); // 1-based, defaults to current month
   const[modal,setModal]=useState(null);
   const[form,setForm]=useState({});
@@ -880,41 +861,36 @@ Respond ONLY in this exact JSON format (no markdown, no extra text):
           </Card>
 
           {/* Bible Verse of the Day */}
-          <div style={{background:`linear-gradient(135deg, ${C.navyDark} 0%, #1D4E6B 100%)`,borderRadius:18,padding:"1.5rem",position:"relative",overflow:"hidden"}}>
-            <div style={{position:"absolute",top:-20,right:-20,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.04)"}}/>
-            <div style={{position:"absolute",bottom:-30,left:-10,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.03)"}}/>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <i className="ti ti-book" style={{fontSize:16,color:"#F0D080"}}/>
+          <div style={{background:"linear-gradient(135deg, #2D4A3E 0%, #1E3A2F 100%)",borderRadius:18,padding:"1.5rem",position:"relative",overflow:"hidden"}}>
+            {/* Decorative circles */}
+            <div style={{position:"absolute",top:-30,right:-30,width:130,height:130,borderRadius:"50%",background:"rgba(255,255,255,0.04)"}}/>
+            <div style={{position:"absolute",bottom:-40,left:-20,width:100,height:100,borderRadius:"50%",background:"rgba(255,255,255,0.03)"}}/>
+            {/* Header */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:34,height:34,borderRadius:10,background:"rgba(212,175,90,0.2)",border:"1px solid rgba(212,175,90,0.3)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <i className="ti ti-book" style={{fontSize:16,color:"#D4AF5A"}}/>
                 </div>
                 <div>
-                  <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:500,letterSpacing:1}}>VERSE OF THE DAY</div>
-                  {bibleVerse&&<div style={{fontSize:11,color:"#F0D080",fontWeight:600}}>{bibleVerse.reference}</div>}
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontWeight:600,letterSpacing:1.5}}>VERSE OF THE DAY</div>
+                  <div style={{fontSize:12,color:"#D4AF5A",fontWeight:600,marginTop:1}}>{bibleVerse?.reference}</div>
                 </div>
               </div>
-              <button onClick={()=>fetchBibleVerse(true)} title="Refresh verse" style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                <i className="ti ti-refresh" style={{fontSize:14,color:"rgba(255,255,255,0.6)"}}/>
+              <button onClick={()=>setBibleVerse(VERSES[(VERSES.indexOf(bibleVerse)+1)%VERSES.length])} title="Next verse" style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                <i className="ti ti-chevrons-right" style={{fontSize:14,color:"rgba(255,255,255,0.5)"}}/>
               </button>
             </div>
-            {verseLoading?(
-              <div style={{textAlign:"center",padding:"20px 0",color:"rgba(255,255,255,0.5)",fontSize:13}}>
-                <i className="ti ti-loader" style={{fontSize:20,display:"block",marginBottom:8}}/> Loading verse...
-              </div>
-            ):bibleVerse?(
-              <div>
-                <p style={{fontSize:13,color:C.white,lineHeight:1.7,fontStyle:"italic",margin:"0 0 10px",fontWeight:400}}>"{bibleVerse.english}"</p>
-                <p style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.6,fontStyle:"italic",margin:"0 0 14px"}}>"{bibleVerse.tagalog}"</p>
-                <div style={{borderTop:"1px solid rgba(255,255,255,0.12)",paddingTop:12}}>
-                  <div style={{display:"flex",gap:6,alignItems:"flex-start"}}>
-                    <i className="ti ti-heart" style={{fontSize:12,color:"#F0D080",marginTop:2,flexShrink:0}}/>
-                    <p style={{fontSize:11,color:"rgba(255,255,255,0.7)",margin:0,lineHeight:1.6}}>{bibleVerse.reflection}</p>
-                  </div>
-                </div>
-              </div>
-            ):(
-              <div style={{textAlign:"center",padding:"16px 0",color:"rgba(255,255,255,0.4)",fontSize:12}}>Could not load verse. Tap refresh to try again.</div>
-            )}
+            {/* Divider */}
+            <div style={{height:1,background:"rgba(255,255,255,0.08)",marginBottom:16}}/>
+            {/* English verse */}
+            <p style={{fontSize:13,color:"rgba(255,255,255,0.92)",lineHeight:1.75,fontStyle:"italic",margin:"0 0 10px",fontWeight:300,letterSpacing:0.2}}>"{bibleVerse?.english}"</p>
+            {/* Tagalog verse */}
+            <p style={{fontSize:11.5,color:"rgba(255,255,255,0.55)",lineHeight:1.7,fontStyle:"italic",margin:"0 0 16px",fontWeight:300}}>"{bibleVerse?.tagalog}"</p>
+            {/* Reflection */}
+            <div style={{background:"rgba(212,175,90,0.08)",border:"1px solid rgba(212,175,90,0.15)",borderRadius:10,padding:"10px 13px",display:"flex",gap:8,alignItems:"flex-start"}}>
+              <i className="ti ti-feather" style={{fontSize:13,color:"#D4AF5A",marginTop:2,flexShrink:0}}/>
+              <p style={{fontSize:11,color:"rgba(255,255,255,0.65)",margin:0,lineHeight:1.65,fontStyle:"normal"}}>{bibleVerse?.reflection}</p>
+            </div>
           </div>
 
         </div>
