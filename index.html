@@ -180,6 +180,9 @@ const PB=({pct})=>{
 
 function App(){
   const[view,setView]=useState("dashboard");
+  const[hideValues,setHideValues]=useState(()=>{try{return localStorage.getItem("hide_values")==="true";}catch{return false;}});
+  const toggleHide=()=>setHideValues(v=>{const n=!v;try{localStorage.setItem("hide_values",String(n));}catch{}return n;});
+  const fmt=(n,cur)=>hideValues?"••••":fmtN(n,cur);
   const VERSES=[
     {reference:"Proverbs 3:9-10",english:"Honor the Lord with your wealth and with the firstfruits of all your produce; then your barns will be filled with plenty, and your vats will be bursting with wine.",tagalog:"Parangalan mo ang Panginoon sa iyong kayamanan, at sa mga unang bunga ng lahat ng iyong ani; at mapupuno ang iyong mga kamalig ng kasaganaan.",reflection:"Putting God first in our finances opens the door to His provision and blessing over our family."},
     {reference:"Luke 16:10",english:"Whoever is faithful in very little is also faithful in much, and whoever is dishonest in very little is also dishonest in much.",tagalog:"Ang tapat sa kakaunti ay tapat din sa marami; at ang hindi tapat sa kakaunti ay hindi rin tapat sa marami.",reflection:"Every small expense we track faithfully builds the habit of stewardship over greater blessings."},
@@ -790,6 +793,9 @@ function App(){
             <button onClick={loadAll} style={{padding:"7px 9px",borderRadius:8,background:"transparent",border:"none",color:"#9AAAC8",fontSize:16}} title="Refresh">
               <i className="ti ti-refresh" aria-hidden="true"/>
             </button>
+            <button onClick={toggleHide} title={hideValues?"Show values":"Hide values"} style={{padding:"7px 9px",borderRadius:8,background:hideValues?"rgba(244,132,95,0.2)":"transparent",border:"none",color:hideValues?C.coral:"#9AAAC8",fontSize:16}}>
+              <i className={`ti ${hideValues?"ti-eye-off":"ti-eye"}`} aria-hidden="true"/>
+            </button>
             <button onClick={()=>setModal("settings")} style={{padding:"7px 9px",borderRadius:8,background:"transparent",border:"none",color:"#9AAAC8",fontSize:16}}>
               <i className="ti ti-settings" aria-hidden="true"/>
             </button>
@@ -817,14 +823,14 @@ function App(){
                 {/* AED — editable */}
                 <div>
                   <div style={{color:"rgba(255,255,255,0.65)",fontSize:10,fontWeight:500,marginBottom:6}}>AED SAVINGS (ALL MONTHS)</div>
-                  <div style={{color:C.white,fontSize:22,fontWeight:500,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{fmtN(totalSavingsAED,"AED")}</div>
+                  <div style={{color:C.white,fontSize:22,fontWeight:500,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{fmt(totalSavingsAED,"AED")}</div>
                   <div style={{marginTop:8,fontSize:10,color:"rgba(255,255,255,0.5)"}}>Auto-calculated from monthly savings</div>
                 </div>
                 {/* PHP — auto-converted */}
                 <div style={{borderLeft:"1.5px solid rgba(255,255,255,0.2)",paddingLeft:16}}>
                   <div style={{color:"rgba(255,255,255,0.65)",fontSize:10,fontWeight:500,marginBottom:6}}>PHP SAVINGS (CONVERTED)</div>
                   <div style={{color:C.tealLight,fontSize:22,fontWeight:500,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>
-                    {rateLoading?"Loading...":(aedToPhp?fmtN(totalSavingsAED*aedToPhp,"PHP"):"No rate")}
+                    {rateLoading?"Loading...":(aedToPhp?fmt(totalSavingsAED*aedToPhp,"PHP"):"No rate")}
                   </div>
                   <div style={{marginTop:10,fontSize:10,color:"rgba(255,255,255,0.5)"}}>
                     {aedToPhp?`1 AED = ${aedToPhp.toFixed(4)} PHP · live rate`:"Could not fetch rate"}
@@ -847,11 +853,11 @@ function App(){
                   {yearRows.filter(Boolean).map((r,i)=>(
                     <tr key={i} onClick={()=>{setSelMonth(i+1);setView("monthly");}} style={{cursor:"pointer",background:(i+1)===selMonth?C.coralLight:C.white,borderBottom:`1px solid ${C.gray2}`}}>
                       <td style={{padding:"8px 5px",fontWeight:i===selMonth?500:400,color:i===selMonth?C.coral:C.text}}>{r.month.slice(0,3)}</td>
-                      <td style={{padding:"8px 5px",color:C.teal}}>{r.income?`${r.income.toFixed(0)}`:"—"}</td>
-                      <td style={{padding:"8px 5px",color:C.coral}}>{r.expenses?`${r.expenses.toFixed(0)}`:"—"}</td>
-                      <td style={{padding:"8px 5px",color:r.over?C.red:C.teal,fontWeight:500}}>{r.income?`${r.balance.toFixed(0)}`:"—"}</td>
-                      <td style={{padding:"8px 5px",color:C.navyLight}}>{r.savings?`${r.savings.toFixed(0)}`:"—"}</td>
-                      <td style={{padding:"8px 5px"}}>{r.income>0?<><span style={{fontSize:11,fontWeight:500,color:r.pct>=100?C.red:r.pct>=85?C.amber:C.teal}}>{r.pct.toFixed(0)}%</span><PB pct={r.pct}/></>:"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.teal}}>{r.income?(hideValues?"••••":`${r.income.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.coral}}>{r.expenses?(hideValues?"••••":`${r.expenses.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:r.over?C.red:C.teal,fontWeight:500}}>{r.income?(hideValues?"••••":`${r.balance.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.navyLight}}>{r.savings?(hideValues?"••••":`${r.savings.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px"}}>{r.income>0?<><span style={{fontSize:11,fontWeight:500,color:r.pct>=100?C.red:r.pct>=85?C.amber:C.teal}}>{hideValues?"••":r.pct.toFixed(0)+"%"}</span>{!hideValues&&<PB pct={r.pct}/>}</>:"—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -927,17 +933,17 @@ function App(){
               <i className="ti ti-alert-triangle" aria-hidden="true" style={{fontSize:20,flexShrink:0}}/>
               <div>
                 <div style={{fontWeight:500,fontSize:13}}>Overspending this month</div>
-                <div style={{fontSize:12,color:"#B91C1C"}}>You are over by {fmtN(Math.abs(balance),"AED")}</div>
+                <div style={{fontSize:12,color:"#B91C1C"}}>You are over by {fmt(Math.abs(balance),"AED")}</div>
               </div>
             </div>
           )}
 
           {/* Metric cards */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
-            <MC label="Total income" value={fmtN(totalInc,"AED")} icon="ti-cash" bg={C.tealLight} ic={C.teal} vc={C.tealDark}/>
-            <MC label="Card expenses" value={fmtN(totalCardExp,"AED")} icon="ti-credit-card" bg={C.coralLight} ic={C.coral} vc={C.coralDark} sub="Deducted from balance"/>
-            <MC label="Withdraw / Cash" value={fmtN(withdraw,"AED")} icon="ti-cash-banknote" bg={cashOverspent?C.redLight:C.amberLight} ic={cashOverspent?C.red:C.amber} vc={cashOverspent?C.red:"#92400E"} sub={withdraw>0?`AED ${cashRemaining.toFixed(2)} remaining cash`:"Set withdraw in settings"}/>
-            <MC label="Balance" value={fmtN(balance,"AED")} icon="ti-scale" bg={balance>=0?"#EEF0FB":C.redLight} ic={balance>=0?C.navyLight:C.red} vc={balance>=0?C.navy:C.red}/>
+            <MC label="Total income" value={fmt(totalInc,"AED")} icon="ti-cash" bg={C.tealLight} ic={C.teal} vc={C.tealDark}/>
+            <MC label="Card expenses" value={fmt(totalCardExp,"AED")} icon="ti-credit-card" bg={C.coralLight} ic={C.coral} vc={C.coralDark} sub="Deducted from balance"/>
+            <MC label="Withdraw / Cash" value={fmt(withdraw,"AED")} icon="ti-cash-banknote" bg={cashOverspent?C.redLight:C.amberLight} ic={cashOverspent?C.red:C.amber} vc={cashOverspent?C.red:"#92400E"} sub={withdraw>0?`AED ${cashRemaining.toFixed(2)} remaining cash`:"Set withdraw in settings"}/>
+            <MC label="Balance" value={fmt(balance,"AED")} icon="ti-scale" bg={balance>=0?"#EEF0FB":C.redLight} ic={balance>=0?C.navyLight:C.red} vc={balance>=0?C.navy:C.red}/>
           </div>
 
           {/* ── Spending Insights ── */}
@@ -981,7 +987,7 @@ function App(){
                       </div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:12,color:cm.text,fontWeight:500}}>Top spend: {topCat.label}</div>
-                        <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{fmtN(topCat.value,"AED")} · {totalCardExp>0?((topCat.value/totalCardExp)*100).toFixed(0):0}% of card expenses</div>
+                        <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{fmt(topCat.value,"AED")} · {totalCardExp>0?((topCat.value/totalCardExp)*100).toFixed(0):0}% of card expenses</div>
                       </div>
                     </div>
                   )}
@@ -997,7 +1003,7 @@ function App(){
                           {Math.abs(totalChange).toFixed(0)}% {totalChange>0?"more":"less"} than {MONTHS[prevMonth-1]}
                         </div>
                         <div style={{fontSize:11,color:C.textLight,marginTop:2}}>
-                          {totalChange>0?"Spending up":"Spending down"} by {fmtN(Math.abs(totalCardExp-prevCardExp),"AED")}
+                          {totalChange>0?"Spending up":"Spending down"} by {fmt(Math.abs(totalCardExp-prevCardExp),"AED")}
                         </div>
                       </div>
                     </div>
@@ -1011,7 +1017,7 @@ function App(){
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:12,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Biggest: {biggestExp.description}</div>
-                        <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{fmtN(Number(biggestExp.amount),"AED")} · {biggestExp.category}</div>
+                        <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{fmt(Number(biggestExp.amount),"AED")} · {biggestExp.category}</div>
                       </div>
                     </div>
                   )}
@@ -1028,7 +1034,7 @@ function App(){
                             <i className={`ti ${ccm.icon}`} style={{fontSize:13,color:ccm.text,width:16,textAlign:"center"}}/>
                             <span style={{fontSize:12,color:C.textMid,flex:1}}>{c.label}</span>
                             <span style={{fontSize:12,fontWeight:500,color:up?C.red:C.teal}}>
-                              {up?"+":""}{fmtN(c.diff,"AED")}
+                              {up?"+":""}{fmt(c.diff,"AED")}
                             </span>
                             {c.change!==null&&(
                               <span style={{fontSize:10,color:C.textLight,background:up?C.redLight:C.tealLight,padding:"1px 6px",borderRadius:5}}>
@@ -1073,7 +1079,7 @@ function App(){
                   <span style={{fontWeight:500,color:pctSpent>=100?C.red:pctSpent>=85?C.amber:C.teal}}>{pctSpent.toFixed(0)}%</span>
                 </div>
                 <PB pct={pctSpent}/>
-                {totalCardExp>ms.budget_limit&&<div style={{fontSize:11,color:C.red,marginTop:5}}>Over budget by {fmtN(totalCardExp-ms.budget_limit,"AED")}</div>}
+                {totalCardExp>ms.budget_limit&&<div style={{fontSize:11,color:C.red,marginTop:5}}>Over budget by {fmt(totalCardExp-ms.budget_limit,"AED")}</div>}
               </div>
             )}
           </Card>
@@ -1087,7 +1093,7 @@ function App(){
               </div>
               <PB pct={pctSpent}/>
               <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:10,color:C.textLight}}>
-                <span>AED 0</span><span>{fmtN(totalInc,"AED")}</span>
+                <span>AED 0</span><span>{fmt(totalInc,"AED")}</span>
               </div>
             </Card>
           )}
@@ -1141,15 +1147,15 @@ function App(){
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
                     <div style={{textAlign:"center"}}>
                       <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>Withdrawn</div>
-                      <div style={{fontSize:14,fontWeight:500,color:"#92400E"}}>{fmtN(withdraw,"AED")}</div>
+                      <div style={{fontSize:14,fontWeight:500,color:"#92400E"}}>{fmt(withdraw,"AED")}</div>
                     </div>
                     <div style={{textAlign:"center",borderLeft:`1px solid #FDE68A`,borderRight:`1px solid #FDE68A`}}>
                       <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>Spent</div>
-                      <div style={{fontSize:14,fontWeight:500,color:C.coral}}>{fmtN(totalCashSpent,"AED")}</div>
+                      <div style={{fontSize:14,fontWeight:500,color:C.coral}}>{fmt(totalCashSpent,"AED")}</div>
                     </div>
                     <div style={{textAlign:"center"}}>
                       <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>Remaining</div>
-                      <div style={{fontSize:14,fontWeight:500,color:cashRemaining>=0?C.teal:C.red}}>{fmtN(cashRemaining,"AED")}</div>
+                      <div style={{fontSize:14,fontWeight:500,color:cashRemaining>=0?C.teal:C.red}}>{fmt(cashRemaining,"AED")}</div>
                     </div>
                   </div>
                   {withdraw>0&&(
@@ -1174,7 +1180,7 @@ function App(){
                     <i className="ti ti-alert-triangle" aria-hidden="true" style={{fontSize:18,flexShrink:0}}/>
                     <div>
                       <div style={{fontWeight:500,fontSize:12}}>Cash overspent!</div>
-                      <div style={{fontSize:11,color:"#B91C1C"}}>You spent {fmtN(totalCashSpent-withdraw,"AED")} more than you withdrew</div>
+                      <div style={{fontSize:11,color:"#B91C1C"}}>You spent {fmt(totalCashSpent-withdraw,"AED")} more than you withdrew</div>
                     </div>
                   </div>
                 )}
@@ -1218,14 +1224,14 @@ function App(){
                         </div>
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontWeight:500,fontSize:13,color:C.text}}>AED {Number(e.amount).toFixed(2)}</div>
+                        <div style={{fontWeight:500,fontSize:13,color:C.text}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
                         {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
                     </div>
                   );
                 })}
                 <div style={{textAlign:"right",paddingTop:8,borderTop:`1.5px solid ${C.gray3}`,fontSize:13,fontWeight:500,color:C.coral}}>
-                  Subtotal: {fmtN(filteredExp.reduce((s,e)=>s+Number(e.amount||0),0),"AED")}
+                  Subtotal: {fmt(filteredExp.reduce((s,e)=>s+Number(e.amount||0),0),"AED")}
                 </div>
               </div>
             )}
@@ -1266,13 +1272,13 @@ function App(){
                       <div style={{fontSize:11,color:"#2D7A5E",marginTop:2}}>{e.date||"No date"}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontWeight:500,fontSize:13,color:C.teal}}>AED {Number(e.amount).toFixed(2)}</div>
+                      <div style={{fontWeight:500,fontSize:13,color:C.teal}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
                       {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                     </div>
                   </div>
                 );})}
                 <div style={{textAlign:"right",paddingTop:8,borderTop:`1.5px solid ${C.gray3}`,fontSize:13,fontWeight:500,color:C.teal}}>
-                  Total: {fmtN(totalInc,"AED")}
+                  Total: {fmt(totalInc,"AED")}
                 </div>
               </div>
             )}
@@ -1313,22 +1319,22 @@ function App(){
             </div>
             {prevMonthClosing!==null&&(
               <div style={{background:"rgba(255,255,255,0.07)",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,color:"#9AAAC8",display:"flex",alignItems:"center",gap:6}}>
-                <i className="ti ti-arrow-forward"/> Carried over from {MONTHS[selMonth-2]}: <strong style={{color:C.tealLight}}>{fmtN(prevMonthClosing,"PHP")}</strong>
+                <i className="ti ti-arrow-forward"/> Carried over from {MONTHS[selMonth-2]}: <strong style={{color:C.tealLight}}>{fmt(prevMonthClosing,"PHP")}</strong>
               </div>
             )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <div>
                 <div style={{color:"#9AAAC8",fontSize:10,marginBottom:4}}>OPENING BALANCE</div>
-                <div style={{color:C.white,fontSize:20,fontWeight:500}}>{fmtN(bdoOpening,"PHP")}</div>
+                <div style={{color:C.white,fontSize:20,fontWeight:500}}>{fmt(bdoOpening,"PHP")}</div>
               </div>
               <div style={{borderLeft:`1.5px solid ${C.navyLight}`,paddingLeft:12}}>
                 <div style={{color:"#9AAAC8",fontSize:10,marginBottom:4}}>CURRENT BALANCE</div>
-                <div style={{color:running>=0?C.tealLight:C.red,fontSize:20,fontWeight:500}}>{fmtN(running,"PHP")}</div>
+                <div style={{color:running>=0?C.tealLight:C.red,fontSize:20,fontWeight:500}}>{fmt(running,"PHP")}</div>
               </div>
             </div>
             <div style={{marginTop:12,display:"flex",gap:16,fontSize:11}}>
-              <span style={{color:"#9AAAC8"}}>Spent: <span style={{color:C.red}}>{fmtN(totalBDOExpenses,"PHP")}</span></span>
-              {totalBDODeposits>0&&<span style={{color:"#9AAAC8"}}>Deposited: <span style={{color:C.tealLight}}>{fmtN(totalBDODeposits,"PHP")}</span></span>}
+              <span style={{color:"#9AAAC8"}}>Spent: <span style={{color:C.red}}>{fmt(totalBDOExpenses,"PHP")}</span></span>
+              {totalBDODeposits>0&&<span style={{color:"#9AAAC8"}}>Deposited: <span style={{color:C.tealLight}}>{fmt(totalBDODeposits,"PHP")}</span></span>}
             </div>
           </div>
 
@@ -1382,11 +1388,11 @@ function App(){
                           {e.date||"No date"} · <span style={{color:cm.text,background:cm.bg,padding:"1px 6px",borderRadius:5}}>{e.category}</span>
                         </div>
                         <div style={{fontSize:11,color:C.navyLight,marginTop:3,fontWeight:500}}>
-                          Balance after: {fmtN(e.running,"PHP")}
+                          Balance after: {fmt(e.running,"PHP")}
                         </div>
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{e.tx_type==="deposit"?"+":"-"}PHP {Number(e.amount).toFixed(2)}</div>
+                        <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{hideValues?"••••":`${e.tx_type==="deposit"?"+":"-"}PHP ${Number(e.amount).toFixed(2)}`}</div>
                         {e.tx_type==="deposit"&&<div style={{fontSize:10,color:C.teal,marginTop:1}}>deposit</div>}
                         {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
                       </div>
@@ -1419,20 +1425,20 @@ function App(){
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
                   <div style={{textAlign:"center",background:C.gray1,borderRadius:10,padding:"8px 4px"}}>
                     <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>Total List</div>
-                    <div style={{fontSize:14,fontWeight:500,color:C.text}}>{fmtN(total,"AED")}</div>
+                    <div style={{fontSize:14,fontWeight:500,color:C.text}}>{fmt(total,"AED")}</div>
                   </div>
                   <div style={{textAlign:"center",background:C.tealLight,borderRadius:10,padding:"8px 4px",border:`1px solid #A7D7C5`}}>
                     <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>By Card</div>
-                    <div style={{fontSize:14,fontWeight:500,color:C.teal}}>{fmtN(cardTotal,"AED")}</div>
+                    <div style={{fontSize:14,fontWeight:500,color:C.teal}}>{fmt(cardTotal,"AED")}</div>
                   </div>
                   <div style={{textAlign:"center",background:C.amberLight,borderRadius:10,padding:"8px 4px",border:`1px solid #FDE68A`}}>
                     <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>By Cash</div>
-                    <div style={{fontSize:14,fontWeight:500,color:"#92400E"}}>{fmtN(cashTotal,"AED")}</div>
+                    <div style={{fontSize:14,fontWeight:500,color:"#92400E"}}>{fmt(cashTotal,"AED")}</div>
                   </div>
                 </div>
                 {checked.length>0&&(
                   <div style={{background:C.tealLight,borderRadius:10,padding:"8px 12px",fontSize:12,color:C.tealDark,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <span>✅ {checked.length} item{checked.length>1?"s":""} done · {fmtN(checkedTotal,"AED")}</span>
+                    <span>✅ {checked.length} item{checked.length>1?"s":""} done · {fmt(checkedTotal,"AED")}</span>
                     <button onClick={async()=>{
                       const done=groceryList.filter(i=>i.checked);
                       for(const item of done){
@@ -1550,7 +1556,7 @@ function App(){
                     </div>
                     {/* Amount + delete */}
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:13,fontWeight:500,color:C.text}}>{Number(item.amount)>0?fmtN(Number(item.amount),"AED"):"—"}</div>
+                      <div style={{fontSize:13,fontWeight:500,color:C.text}}>{Number(item.amount)>0?fmt(Number(item.amount),"AED"):"—"}</div>
                       <button onClick={()=>saveGrocery(groceryList.filter(i=>i.id!==item.id))} style={{background:"none",border:"none",color:C.gray3,fontSize:13,padding:"2px 0"}}>
                         <i className="ti ti-trash"/>
                       </button>
@@ -1650,8 +1656,8 @@ function App(){
                 })}
               </div>
               <div style={{background:(form.bdoType||"expense")==="deposit"?C.tealLight:"#EEF0FB",border:`1px solid ${(form.bdoType||"expense")==="deposit"?"#A7D7C5":"#C5CAE9"}`,borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12,color:(form.bdoType||"expense")==="deposit"?C.tealDark:C.navy}}>
-                Current balance: <strong>{fmtN(running,"PHP")}</strong>
-                {form.amount>0&&<span style={{marginLeft:8,opacity:0.8}}>→ After: <strong>{fmtN((form.bdoType||"expense")==="deposit"?running+Number(form.amount):running-Number(form.amount),"PHP")}</strong></span>}
+                Current balance: <strong>{fmt(running,"PHP")}</strong>
+                {form.amount>0&&<span style={{marginLeft:8,opacity:0.8}}>→ After: <strong>{fmt((form.bdoType||"expense")==="deposit"?running+Number(form.amount):running-Number(form.amount),"PHP")}</strong></span>}
               </div>
               <label style={lbl}>Date</label>
               <input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={inp}/>
@@ -1680,7 +1686,7 @@ function App(){
               <div style={{fontWeight:500,fontSize:15,marginBottom:6,color:C.text}}>Update AED savings</div>
               <div style={{fontSize:12,color:C.textMid,marginBottom:6}}>Enter your current AED savings amount</div>
               {aedToPhp&&<div style={{fontSize:12,color:C.teal,marginBottom:14,background:C.tealLight,padding:"8px 12px",borderRadius:8}}>
-                PHP equivalent: <strong>{fmtN(Number(form.val||0)*aedToPhp,"PHP")}</strong> at {aedToPhp.toFixed(4)} PHP/AED
+                PHP equivalent: <strong>{fmt(Number(form.val||0)*aedToPhp,"PHP")}</strong> at {aedToPhp.toFixed(4)} PHP/AED
               </div>}
               <input type="text" inputMode="decimal" pattern="[0-9]*" value={form.val||""} onChange={e=>setForm(f=>({...f,val:e.target.value}))} style={inp} placeholder="0.00"/>
               <div style={{display:"flex",gap:8}}>
