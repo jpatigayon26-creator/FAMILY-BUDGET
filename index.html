@@ -180,6 +180,45 @@ const PB=({pct})=>{
 
 function App(){
   const[view,setView]=useState("dashboard");
+  const[bibleVerse,setBibleVerse]=useState(null);
+  const[verseLoading,setVerseLoading]=useState(false);
+  const fetchBibleVerse=async(force=false)=>{
+    const today=new Date().toISOString().slice(0,10);
+    try{
+      const cached=localStorage.getItem("bible_verse");
+      if(cached&&!force){
+        const p=JSON.parse(cached);
+        if(p.date===today){setBibleVerse(p);return;}
+      }
+    }catch{}
+    setVerseLoading(true);
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:400,
+          messages:[{role:"user",content:`Give me one Bible verse related to finances, stewardship, generosity, or saving. 
+Respond ONLY in this exact JSON format (no markdown, no extra text):
+{
+  "reference": "Book Chapter:Verse",
+  "english": "Full verse text in English",
+  "tagalog": "Full verse text in Filipino/Tagalog",
+  "reflection": "A short 1-2 sentence reflection on how this applies to managing our family finances."
+}`}]
+        })
+      });
+      const d=await res.json();
+      const text=d.content?.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
+      const verse=JSON.parse(text);
+      verse.date=today;
+      try{localStorage.setItem("bible_verse",JSON.stringify(verse));}catch{}
+      setBibleVerse(verse);
+    }catch(e){console.error(e);}
+    setVerseLoading(false);
+  };
+  React.useEffect(()=>{fetchBibleVerse();},[]);
   const[selMonth,setSelMonth]=useState(new Date().getMonth()+1); // 1-based, defaults to current month
   const[modal,setModal]=useState(null);
   const[form,setForm]=useState({});
@@ -839,6 +878,45 @@ function App(){
             </div>
             <div style={{marginTop:8,fontSize:11,color:C.textLight,textAlign:"center"}}>Tap any month to open it</div>
           </Card>
+
+          {/* Bible Verse of the Day */}
+          <div style={{background:`linear-gradient(135deg, ${C.navyDark} 0%, #1D4E6B 100%)`,borderRadius:18,padding:"1.5rem",position:"relative",overflow:"hidden"}}>
+            <div style={{position:"absolute",top:-20,right:-20,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.04)"}}/>
+            <div style={{position:"absolute",bottom:-30,left:-10,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.03)"}}/>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <i className="ti ti-book" style={{fontSize:16,color:"#F0D080"}}/>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:500,letterSpacing:1}}>VERSE OF THE DAY</div>
+                  {bibleVerse&&<div style={{fontSize:11,color:"#F0D080",fontWeight:600}}>{bibleVerse.reference}</div>}
+                </div>
+              </div>
+              <button onClick={()=>fetchBibleVerse(true)} title="Refresh verse" style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                <i className="ti ti-refresh" style={{fontSize:14,color:"rgba(255,255,255,0.6)"}}/>
+              </button>
+            </div>
+            {verseLoading?(
+              <div style={{textAlign:"center",padding:"20px 0",color:"rgba(255,255,255,0.5)",fontSize:13}}>
+                <i className="ti ti-loader" style={{fontSize:20,display:"block",marginBottom:8}}/> Loading verse...
+              </div>
+            ):bibleVerse?(
+              <div>
+                <p style={{fontSize:13,color:C.white,lineHeight:1.7,fontStyle:"italic",margin:"0 0 10px",fontWeight:400}}>"{bibleVerse.english}"</p>
+                <p style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.6,fontStyle:"italic",margin:"0 0 14px"}}>"{bibleVerse.tagalog}"</p>
+                <div style={{borderTop:"1px solid rgba(255,255,255,0.12)",paddingTop:12}}>
+                  <div style={{display:"flex",gap:6,alignItems:"flex-start"}}>
+                    <i className="ti ti-heart" style={{fontSize:12,color:"#F0D080",marginTop:2,flexShrink:0}}/>
+                    <p style={{fontSize:11,color:"rgba(255,255,255,0.7)",margin:0,lineHeight:1.6}}>{bibleVerse.reflection}</p>
+                  </div>
+                </div>
+              </div>
+            ):(
+              <div style={{textAlign:"center",padding:"16px 0",color:"rgba(255,255,255,0.4)",fontSize:12}}>Could not load verse. Tap refresh to try again.</div>
+            )}
+          </div>
+
         </div>
       )}
 
