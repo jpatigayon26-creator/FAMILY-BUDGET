@@ -559,59 +559,133 @@ function App(){
 
   const exportExcel=async(exportMonth)=>{
     const isAll=exportMonth===-1;
-    const monthsToExport=isAll?[1,2,3,4,5,6,7,8,9,10,11,12]:[ exportMonth];
+    const monthsToExport=isAll?[1,2,3,4,5,6,7,8,9,10,11,12]:[exportMonth];
     const wb=XLSX.utils.book_new();
+    // Color palette
+    const NAV="#2C3E6B",NAV2="#1A2A4A",TEA="#1D9E75",COR="#F4845F",AMB="#F59E0B",GRY="#EEF0F5",GR2="#F8F9FC",WHT="FFFFFF";
+    const CAT_COL={Bills:"DC2626",Food:"F59E0B",Grocery:"10B981",Shopping:"8B5CF6",Transportation:"3B82F6",Other:"6B7280"};
+    // Style helpers
+    const hdrS=(bg,bold=true)=>({font:{name:"Arial",sz:11,bold,color:{rgb:WHT}},fill:{fgColor:{rgb:bg}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}});
+    const bodyS=(bg=WHT,bold=false,align="left")=>({font:{name:"Arial",sz:10,bold,color:{rgb:"1A1A2E"}},fill:{fgColor:{rgb:bg}},alignment:{horizontal:align,vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}});
+    const totS=(bg)=>({font:{name:"Arial",sz:10,bold:true,color:{rgb:WHT}},fill:{fgColor:{rgb:bg}},alignment:{horizontal:"right",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}});
+    const AED_FMT='#,##0.00 "AED"';
     monthsToExport.forEach(m=>{
-      const mName=MONTHS[m-1]||'Month'+m;
+      const mName=MONTHS[m-1]||"Month"+m;
       const mms=monthSettings[m]||{savings:0,bdo_opening:0,budget_limit:0,withdraw:0};
-      const mInc=income.filter(e=>e.month===m);
-      const mCard=expenses.filter(e=>e.month===m&&e.pay_type==="Card");
-      const mCash=expenses.filter(e=>e.month===m&&e.pay_type==="Cash On Hand");
-      const mBDO=bdoTx.filter(e=>e.month===m);
+      const mInc=income.filter(e=>e.month===m).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+      const mCard=expenses.filter(e=>e.month===m&&e.pay_type==="Card").sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+      const mCash=expenses.filter(e=>e.month===m&&e.pay_type==="Cash On Hand").sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+      const mBDO=bdoTx.filter(e=>e.month===m).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
       const totalInc=mInc.reduce((s,x)=>s+Number(x.amount||0),0);
       const totalCard=mCard.reduce((s,x)=>s+Number(x.amount||0),0);
       const totalCash=mCash.reduce((s,x)=>s+Number(x.amount||0),0);
+      const totalBDO=mBDO.reduce((s,x)=>s+Number(x.amount||0),0);
       const wd=Number(mms.withdraw||0);
       const bal=totalInc-totalCard-wd;
-      // Build rows
-      const rows=[];
-      // Summary
-      rows.push(["SUMMARY",""]);
-      rows.push(["Expenses (Card)",totalCard]);
-      rows.push(["Income",totalInc]);
-      rows.push(["Cash On Hand",totalCash]);
-      rows.push(["Balance",bal]);
-      rows.push(["Withdraw Amount",wd]);
-      rows.push([]);
-      // Income
-      rows.push(["INCOME","","",""]);
-      rows.push(["Date","Amount","Description",""]);
-      mInc.forEach(e=>rows.push([e.date||"",Number(e.amount),e.description,""]));
-      rows.push(["Total",totalInc,"",""]);
-      rows.push([]);
-      // Card expenses
-      rows.push(["EXPENSE LIST (CARD)","","",""]);
-      rows.push(["Date","Amount","Description","Category"]);
-      mCard.forEach(e=>rows.push([e.date||"",Number(e.amount),e.description,e.category]));
-      rows.push(["Total",totalCard,"",""]);
-      rows.push([]);
-      // Cash on hand
-      rows.push(["EXPENSE LIST (CASH ON HAND)","","",""]);
-      rows.push(["Date","Amount","Description","Category"]);
-      mCash.forEach(e=>rows.push([e.date||"",Number(e.amount),e.description,e.category]));
-      rows.push(["Total",totalCash,"",""]);
-      rows.push([]);
-      // BDO
-      rows.push(["BDO","","",""]);
-      rows.push(["Date","Amount","Description","Category"]);
-      mBDO.forEach(e=>rows.push([e.date||"",Number(e.amount),e.description,e.category]));
-      rows.push([]);
-      const ws=XLSX.utils.aoa_to_sheet(rows);
-      ws["!cols"]=[{wch:14},{wch:14},{wch:28},{wch:16}];
+      // Category breakdown
+      const catTotals={};
+      mCard.forEach(e=>{catTotals[e.category]=(catTotals[e.category]||0)+Number(e.amount||0);});
+      const catSorted=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+      // Build sheet data
+      const data=[];const styles=[];const merges=[];const rowH=[];
+      const addRow=(cells,h=20)=>{data.push(cells);styles.push(cells.map(()=>null));rowH.push(h);};
+      const setStyle=(r,c,s)=>{if(styles[r])styles[r][c]=s;};
+      const addMerge=(r,c1,c2)=>merges.push({s:{r,c:c1},e:{r,c:c2}});
+      // TITLE
+      addRow([`FAMILY BUDGET — ${mName.toUpperCase()} 2026`,"","",""],36);
+      setStyle(0,0,{font:{name:"Arial",sz:15,bold:true,color:{rgb:WHT}},fill:{fgColor:{rgb:NAV2}},alignment:{horizontal:"center",vertical:"center"}});
+      addMerge(0,0,3);
+      addRow(["","","",""],6); // spacer
+      // SUMMARY HEADER
+      addRow(["📊  MONTHLY SUMMARY","","",""],24);
+      setStyle(2,0,hdrS(NAV));addMerge(2,0,3);
+      const summaryRows=[
+        ["  ✅  Income",totalInc,TEA],
+        ["  💳  Expenses (Card)",totalCard,COR],
+        ["  💵  Cash On Hand",totalCash,AMB],
+        ["  🏧  Withdraw Amount",wd,AMB],
+        ["  💰  Balance",bal,NAV],
+      ];
+      summaryRows.forEach(([lbl,val,col],i)=>{
+        const r=data.length;
+        addRow([lbl,val,"",""],22);
+        setStyle(r,0,{font:{name:"Arial",sz:10,color:{rgb:"1A1A2E"}},fill:{fgColor:{rgb:GRY}},alignment:{horizontal:"left",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}});
+        addMerge(r,0,1);
+        setStyle(r,2,{font:{name:"Arial",sz:10,bold:true,color:{rgb:WHT}},fill:{fgColor:{rgb:col}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}},numFmt:AED_FMT});
+        setStyle(r,3,{fill:{fgColor:{rgb:col}},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}});
+      });
+      addRow(["","","",""],8); // spacer
+      // INCOME
+      const addSection=(title,color,headers,rows,totals)=>{
+        const hr=data.length;addRow([title,"","",""],24);
+        setStyle(hr,0,hdrS(color));addMerge(hr,0,3);
+        const colH=data.length;addRow(headers,20);
+        headers.forEach((_,c)=>setStyle(colH,c,{font:{name:"Arial",sz:9,bold:true,color:{rgb:NAV2}},fill:{fgColor:{rgb:GRY}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}}));
+        const startR=data.length;
+        rows.forEach((row,idx)=>{
+          const r=data.length;addRow(row,18);
+          const bg=idx%2===0?WHT:"F0F4FF";
+          row.forEach((_,c)=>{
+            const al=c===0?"center":c===1?"right":"left";
+            const s=bodyS(bg,false,al);
+            if(c===1)s.numFmt=AED_FMT;
+            setStyle(r,c,s);
+          });
+        });
+        const totR=data.length;addRow(totals,20);
+        totals.forEach((_,c)=>{const s=totS(color);if(c===1)s.numFmt=AED_FMT;if(c===0){s.alignment={horizontal:"left",vertical:"center"};}setStyle(totR,c,s);});
+        addRow(["","","",""],8);
+      };
+      addSection("💚  INCOME",TEA,["Date","Amount (AED)","Description",""],
+        mInc.map(e=>[e.date||"",Number(e.amount||0),e.description||""," "]),
+        ["TOTAL INCOME",totalInc," "," "]);
+      addSection("💳  EXPENSE LIST — CARD",COR,["Date","Amount (AED)","Description","Category"],
+        mCard.map(e=>[e.date||"",Number(e.amount||0),e.description||"",e.category||""]),
+        ["TOTAL CARD EXPENSES",totalCard," "," "]);
+      // Category breakdown
+      if(catSorted.length){
+        const cbH=data.length;addRow(["📂  CATEGORY BREAKDOWN (CARD)","","",""],24);
+        setStyle(cbH,0,hdrS(NAV));addMerge(cbH,0,3);
+        const cbCH=data.length;addRow(["Category","Total (AED)","% of Expenses",""],20);
+        ["Category","Total (AED)","% of Expenses",""].forEach((_,c)=>setStyle(cbCH,c,{font:{name:"Arial",sz:9,bold:true,color:{rgb:NAV2}},fill:{fgColor:{rgb:GRY}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}}));
+        catSorted.forEach(([cat,total],idx)=>{
+          const r=data.length;const pct=totalCard?total/totalCard:0;
+          addRow([cat,total,pct,""],18);
+          const col=CAT_COL[cat]||"6B7280";
+          setStyle(r,0,{font:{name:"Arial",sz:10,bold:true,color:{rgb:WHT}},fill:{fgColor:{rgb:col}},alignment:{horizontal:"center",vertical:"center"},border:{top:{style:"thin",color:{rgb:"D0D5E8"}},bottom:{style:"thin",color:{rgb:"D0D5E8"}},left:{style:"thin",color:{rgb:"D0D5E8"}},right:{style:"thin",color:{rgb:"D0D5E8"}}}});
+          const bg2=idx%2===0?WHT:GRY;
+          setStyle(r,1,{...bodyS(bg2,false,"right"),numFmt:AED_FMT});
+          setStyle(r,2,{...bodyS(bg2,false,"center"),numFmt:"0.0%"});
+          setStyle(r,3,bodyS(bg2));
+        });
+        addRow(["","","",""],8);
+      }
+      addSection("💵  EXPENSE LIST — CASH ON HAND",AMB,["Date","Amount (AED)","Description","Category"],
+        mCash.map(e=>[e.date||"",Number(e.amount||0),e.description||"",e.category||""]),
+        ["TOTAL CASH EXPENSES",totalCash," "," "]);
+      if(mBDO.length){
+        addSection("🏦  BDO TRANSACTIONS",NAV,["Date","Amount (AED)","Description","Category"],
+          mBDO.map(e=>[e.date||"",Number(e.amount||0),e.description||"",e.category||""]),
+          ["TOTAL BDO",totalBDO," "," "]);
+      }
+      // Build worksheet
+      const ws=XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"]=[{wch:16},{wch:16},{wch:34},{wch:18}];
+      ws["!merges"]=merges;
+      ws["!rows"]=rowH.map(h=>({hpt:h}));
+      // Apply styles and number formats
+      data.forEach((row,r)=>{
+        row.forEach((val,c)=>{
+          const cellRef=XLSX.utils.encode_cell({r,c});
+          if(!ws[cellRef])ws[cellRef]={t:typeof val==="number"?"n":"s",v:val};
+          const s=styles[r]&&styles[r][c];
+          if(s){ws[cellRef].s=s;if(s.numFmt)ws[cellRef].z=s.numFmt;}
+        });
+      });
       XLSX.utils.book_append_sheet(wb,ws,mName.slice(0,3));
     });
-    XLSX.writeFile(wb,isAll?"family_budget_2026.xlsx":`family_budget_${MONTHS[exportMonth]}_2026.xlsx`);
-    showToast("Excel exported!",C.teal);
+    XLSX.writeFile(wb,isAll?"family_budget_2026.xlsx":`family_budget_${MONTHS[exportMonth]}_2026.xlsx`,{cellStyles:true});
+    showToast("Excel exported! 🎉",C.teal);
     setModal(null);
   };
 
