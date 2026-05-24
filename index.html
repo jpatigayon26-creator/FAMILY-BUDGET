@@ -251,6 +251,7 @@ function App(){
     catch{return[];}
   });
   const[syncing2,setSyncing2]=useState(false);
+  const[isDesktop,setIsDesktop]=useState(()=>window.innerWidth>=900);
 
   // Persist queue to localStorage whenever it changes
   const saveQueue=(q)=>{
@@ -367,6 +368,12 @@ function App(){
   useEffect(()=>{
     if(isOnline&&queue.length>0)syncQueue();
   },[isOnline]);
+
+  useEffect(()=>{
+    const onResize=()=>setIsDesktop(window.innerWidth>=900);
+    window.addEventListener("resize",onResize);
+    return()=>window.removeEventListener("resize",onResize);
+  },[]);
 
   // AED expenses — split by pay type
   const monthAEDExp=expenses.filter(e=>e.month===selMonth&&(e.pay_type==="Card"||e.pay_type==="Cash On Hand"));
@@ -744,7 +751,66 @@ function App(){
   );
 
   return(
-    <div style={{maxWidth:760,margin:"0 auto",background:"#F5F6FA",minHeight:"100vh",paddingBottom:90}}>
+    <div style={isDesktop?{display:"flex",flexDirection:"row",height:"100vh",background:"#F5F6FA",overflow:"hidden"}:{maxWidth:760,margin:"0 auto",background:"#F5F6FA",minHeight:"100vh",paddingBottom:90}}>
+
+      {/* ── DESKTOP SIDEBAR ── */}
+      {isDesktop&&(
+        <div style={{width:240,background:C.navy,display:"flex",flexDirection:"column",flexShrink:0,height:"100vh",overflowY:"auto"}}>
+          {/* Logo */}
+          <div style={{padding:"1.5rem 1.25rem 1rem",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+              <div style={{width:38,height:38,borderRadius:11,background:C.coral,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <i className="ti ti-home-heart" style={{fontSize:20,color:C.white}}/>
+              </div>
+              <div>
+                <div style={{color:C.white,fontWeight:600,fontSize:14}}>Family Budget</div>
+                <div style={{color:"#9AAAC8",fontSize:11}}>James & Angel · 2026</div>
+              </div>
+            </div>
+          </div>
+          {/* Nav items */}
+          <div style={{padding:"1rem 0.75rem",flex:1}}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontWeight:600,letterSpacing:1.5,marginBottom:8,paddingLeft:8}}>NAVIGATION</div>
+            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"],["Grocery","ti-shopping-cart","grocery"]].map(([label,icon,v])=>(
+              <button key={v} onClick={()=>setView(v)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:10,background:view===v?"rgba(244,132,95,0.15)":"transparent",color:view===v?C.coral:"#9AAAC8",border:"none",fontWeight:view===v?600:400,fontSize:13,marginBottom:2,cursor:"pointer",textAlign:"left",borderLeft:view===v?`3px solid ${C.coral}`:"3px solid transparent"}}>
+                <i className={`ti ${icon}`} style={{fontSize:16,flexShrink:0,width:20,textAlign:"center"}}/>
+                {label}
+              </button>
+            ))}
+            <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"12px 0"}}/>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",fontWeight:600,letterSpacing:1.5,marginBottom:8,paddingLeft:8}}>TOOLS</div>
+            <button onClick={loadAll} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",color:"#9AAAC8",border:"none",fontSize:13,cursor:"pointer",textAlign:"left",marginBottom:2}}>
+              <i className="ti ti-refresh" style={{fontSize:16,width:20,textAlign:"center"}}/>Refresh
+            </button>
+            <button onClick={toggleHide} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:10,background:hideValues?"rgba(244,132,95,0.12)":"transparent",color:hideValues?C.coral:"#9AAAC8",border:"none",fontSize:13,cursor:"pointer",textAlign:"left",marginBottom:2}}>
+              <i className={`ti ${hideValues?"ti-eye-off":"ti-eye"}`} style={{fontSize:16,width:20,textAlign:"center"}}/>{hideValues?"Show Values":"Hide Values"}
+            </button>
+            <button onClick={()=>setModal("export")} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",color:"#9AAAC8",border:"none",fontSize:13,cursor:"pointer",textAlign:"left",marginBottom:2}}>
+              <i className="ti ti-download" style={{fontSize:16,width:20,textAlign:"center"}}/>Export Excel
+            </button>
+            <button onClick={()=>setModal("settings")} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",color:"#9AAAC8",border:"none",fontSize:13,cursor:"pointer",textAlign:"left",marginBottom:2}}>
+              <i className="ti ti-settings" style={{fontSize:16,width:20,textAlign:"center"}}/>Settings
+            </button>
+          </div>
+          {/* Status bar */}
+          <div style={{padding:"0.75rem 1rem",borderTop:"1px solid rgba(255,255,255,0.07)"}}>
+            {!isOnline?(
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:C.amber}}>
+                <i className="ti ti-wifi-off" style={{fontSize:13}}/> Offline{queue.length>0?` · ${queue.length} pending`:""}
+              </div>
+            ):(
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:"rgba(255,255,255,0.35)"}}>
+                <i className="ti ti-wifi" style={{fontSize:13,color:C.teal}}/> Connected
+              </div>
+            )}
+            {syncing&&<div style={{fontSize:10,color:C.teal,marginTop:4}}>Syncing…</div>}
+            {syncing2&&<div style={{fontSize:10,color:C.amber,marginTop:4}}>Syncing queue…</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ── RIGHT / MOBILE CONTENT AREA ── */}
+      <div style={isDesktop?{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}:{}}>
 
       {toast&&(
         <div style={{position:"fixed",top:16,right:16,left:16,maxWidth:400,margin:"0 auto",background:toast.color,color:C.white,padding:"12px 18px",borderRadius:12,fontSize:13,fontWeight:500,zIndex:999,textAlign:"center"}}>
@@ -772,7 +838,8 @@ function App(){
         </div>
       )}
 
-      {/* Header */}
+      {/* ── MOBILE/DESKTOP HEADER ── */}
+      {!isDesktop&&(
       <div style={{background:C.navy,borderRadius:"0 0 24px 24px",padding:"1.25rem 1.25rem 1rem",marginBottom:"1rem"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -802,8 +869,9 @@ function App(){
           </div>
         </div>
       </div>
+      )}
 
-      <div style={{padding:"0 1rem 3rem"}}>
+      <div style={isDesktop?{padding:"1.5rem",flex:1}:{padding:"0 1rem 3rem"}}>
 
       {/* ── DASHBOARD ── */}
       {view==="dashboard"&&(
