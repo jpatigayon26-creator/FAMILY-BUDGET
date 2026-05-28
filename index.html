@@ -79,7 +79,7 @@ const CAT_META={
 };
 const CAT_CHART={Food:"#FF8A65",Bills:"#7986CB",Grocery:"#66BB6A",Transportation:"#42A5F5",Medical:"#F48FB1",Other:"#CE93D8",Shopping:"#FFD54F",Savings:"#4DD0E1"};
 
-const C={
+const LIGHT_C={
   navy:"#2C3E6B",navyDark:"#1E2D52",navyLight:"#4A5FA8",
   coral:"#F4845F",coralDark:"#D96B43",coralLight:"#FAD4C4",
   teal:"#1D9E75",tealDark:"#157A5A",tealLight:"#C8EFE1",
@@ -88,6 +88,16 @@ const C={
   red:"#DC2626",redLight:"#FEE2E2",
   gray1:"#F8F8F8",gray2:"#F0F0F0",gray3:"#D0D0D0",gray4:"#888",
   white:"#FFFFFF",text:"#1A1A2E",textMid:"#4A4A6A",textLight:"#888899",
+};
+const DARK_C={
+  navy:"#1A2240",navyDark:"#0E1528",navyLight:"#5872C0",
+  coral:"#F4845F",coralDark:"#D96B43",coralLight:"#4A2010",
+  teal:"#1D9E75",tealDark:"#157A5A",tealLight:"#0C2E22",
+  purple:"#9B7EC7",purpleLight:"#2A1E40",
+  amber:"#F59E0B",amberLight:"#3A2800",
+  red:"#EF4444",redLight:"#3A0E0E",
+  gray1:"#1A1C2C",gray2:"#22253A",gray3:"#383C55",gray4:"#7878A0",
+  white:"#1E2135",text:"#E4E4F0",textMid:"#A0A2C0",textLight:"#66688E",
 };
 
 const fmtN=(n,cur="AED")=>`${cur} ${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -179,7 +189,45 @@ const PB=({pct})=>{
   </div>);
 };
 
+function SwipeRow({onDelete,disabled,children,style={}}){
+  const [offset,setOffset]=React.useState(0);
+  const [swiping,setSwiping]=React.useState(false);
+  const startX=React.useRef(null);
+  const THRESHOLD=72;
+  const onTouchStart=e=>{if(disabled)return;startX.current=e.touches[0].clientX;setSwiping(true);};
+  const onTouchMove=e=>{
+    if(startX.current===null)return;
+    const dx=e.touches[0].clientX-startX.current;
+    if(dx<0)setOffset(Math.max(dx,-THRESHOLD-10));
+  };
+  const onTouchEnd=()=>{
+    if(offset<-THRESHOLD){setOffset(-THRESHOLD);}else{setOffset(0);}
+    setSwiping(false);startX.current=null;
+  };
+  const reset=()=>setOffset(0);
+  return(
+    <div style={{position:"relative",overflow:"hidden",borderRadius:10,...style}}>
+      <div style={{position:"absolute",right:0,top:0,bottom:0,width:THRESHOLD,display:"flex",alignItems:"center",justifyContent:"center",background:"#EF4444",borderRadius:"0 10px 10px 0"}}>
+        <button onClick={()=>{reset();onDelete();}} style={{background:"none",border:"none",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"0 8px"}}>
+          <i className="ti ti-trash" style={{fontSize:18}}/><span>Delete</span>
+        </button>
+      </div>
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{transform:`translateX(${offset}px)`,transition:swiping?"none":"transform 0.2s ease",position:"relative",zIndex:1}}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function App(){
+  const[darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("dark_mode")==="1";}catch{return false;}});
+  const toggleDark=()=>{const n=!darkMode;setDarkMode(n);try{localStorage.setItem("dark_mode",n?"1":"0");}catch{}};
+  const C=darkMode?DARK_C:LIGHT_C;
   const[view,setView]=useState("dashboard");
   const[hideValues,setHideValues]=useState(false);
   const toggleHide=()=>setHideValues(v=>!v);
@@ -228,6 +276,13 @@ function App(){
     try{const l=localStorage.getItem("locked_months");return l?JSON.parse(l):[];}catch{return[];}
   });
   const[unlockPrompt,setUnlockPrompt]=useState(null); // month number pending unlock
+  // New features
+  const[searchQuery,setSearchQuery]=useState("");
+  const[editData,setEditData]=useState(null); // {type:"exp"|"inc"|"bdo", item}
+  const[editForm,setEditForm]=useState({});
+  const[recurringTemplates,setRecurringTemplates]=useState(()=>{try{const r=localStorage.getItem("recurring_templates");return r?JSON.parse(r):[];}catch{return[];}});
+  const[catBudgets,setCatBudgets]=useState(()=>{try{const b=localStorage.getItem("cat_budgets");return b?JSON.parse(b):{};}catch{return{};}});
+  const[showCatBudgets,setShowCatBudgets]=useState(false);
   const toggleLock=(month)=>{
     const locked=lockedMonths.includes(month);
     if(locked){setUnlockPrompt(month);return;}
@@ -242,6 +297,8 @@ function App(){
     setLockedMonths(updated);
     setUnlockPrompt(null);
   };
+  const saveRecurring=(templates)=>{try{localStorage.setItem("recurring_templates",JSON.stringify(templates));}catch{}setRecurringTemplates(templates);};
+  const saveCatBudgets=(budgets)=>{try{localStorage.setItem("cat_budgets",JSON.stringify(budgets));}catch{}setCatBudgets(budgets);};
   const saveGrocery=(list)=>{
     try{localStorage.setItem("grocery_list",JSON.stringify(list));}catch{}
     setGroceryList(list);
@@ -427,7 +484,9 @@ function App(){
 
   // Category totals (AED only)
   const catTotals=CATEGORIES.map(c=>({label:c,value:monthAEDExp.filter(e=>e.category===c).reduce((s,x)=>s+Number(x.amount||0),0)}));
-  const filteredExp=monthAEDExp.filter(e=>e.pay_type===expTab).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const sq=searchQuery.toLowerCase().trim();
+  const filteredExp=monthAEDExp.filter(e=>e.pay_type===expTab&&(!sq||(e.description||"").toLowerCase().includes(sq)||(e.category||"").toLowerCase().includes(sq))).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const filteredInc=monthInc.filter(e=>!sq||(e.description||"").toLowerCase().includes(sq));
 
   // Select all helpers — defined here so filteredExp, monthInc, monthBDO are available
   const selectAllExp=(ids)=>setSelectedIds(prev=>({...prev,exp:new Set(ids)}));
@@ -467,6 +526,11 @@ function App(){
   const addExp=async()=>{
     if(isMonthLocked){showToast("Month is locked 🔒",C.amber);return;}
     if(!form.amount||!form.description)return;
+    // Save as recurring template if checked
+    if(form.recurring){
+      const template={id:"r_"+Date.now(),description:form.description,amount:form.amount,category:form.category||"Food",payType:form.payType||"Card",type:"expense"};
+      saveRecurring([...recurringTemplates,template]);
+    }
     const data={month:selMonth,amount:Number(form.amount),description:form.description,category:form.category||"Food",pay_type:form.payType||"Card",currency:"AED",date:form.date||""};
     const tempId="tmp_"+Date.now();
     const tempItem={...data,id:tempId,_pending:true};
@@ -493,6 +557,10 @@ function App(){
   const addInc=async()=>{
     if(isMonthLocked){showToast("Month is locked 🔒",C.amber);return;}
     if(!form.amount||!form.description)return;
+    if(form.recurring){
+      const template={id:"r_"+Date.now(),description:form.description,amount:form.amount,type:"income"};
+      saveRecurring([...recurringTemplates,template]);
+    }
     const data={month:selMonth,amount:Number(form.amount),description:form.description,currency:"AED",date:form.date||""};
     const tempId="tmp_"+Date.now();
     const tempItem={...data,id:tempId,_pending:true};
@@ -578,6 +646,32 @@ function App(){
       clearSelection();
     }catch(e){showToast("Delete error: "+e.message,C.red);}
     setSyncing(false);
+  };
+
+  // Edit functions
+  const saveEditExp=async()=>{
+    if(!editData||isMonthLocked)return;
+    const updates={amount:Number(editForm.amount),description:editForm.description,category:editForm.category,pay_type:editForm.payType,date:editForm.date||""};
+    setExpenses(prev=>prev.map(e=>e.id===editData.item.id?{...e,...updates}:e));
+    setEditData(null);setEditForm({});
+    try{await db.patch("expenses",`?id=eq.${editData.item.id}`,updates);showToast("Expense updated!");}
+    catch(e){showToast("Update error",C.red);}
+  };
+  const saveEditInc=async()=>{
+    if(!editData||isMonthLocked)return;
+    const updates={amount:Number(editForm.amount),description:editForm.description,date:editForm.date||""};
+    setIncome(prev=>prev.map(e=>e.id===editData.item.id?{...e,...updates}:e));
+    setEditData(null);setEditForm({});
+    try{await db.patch("income",`?id=eq.${editData.item.id}`,updates);showToast("Income updated!",C.teal);}
+    catch(e){showToast("Update error",C.red);}
+  };
+  const saveEditBDO=async()=>{
+    if(!editData||isMonthLocked)return;
+    const updates={amount:Number(editForm.amount),description:editForm.description,category:editForm.category,date:editForm.date||"",tx_type:editForm.bdoType||"expense"};
+    setBdoTx(prev=>prev.map(e=>e.id===editData.item.id?{...e,...updates}:e));
+    setEditData(null);setEditForm({});
+    try{await db.patch("bdo_transactions",`?id=eq.${editData.item.id}`,updates);showToast("BDO transaction updated!",C.navy);}
+    catch(e){showToast("Update error",C.red);}
   };
 
   const exportExcel=async(exportMonth)=>{
@@ -744,7 +838,7 @@ function App(){
   );
 
   return(
-    <div style={{maxWidth:760,margin:"0 auto",background:"#F5F6FA",minHeight:"100vh",paddingBottom:90}}>
+    <div style={{maxWidth:760,margin:"0 auto",background:darkMode?"#12141F":"#F5F6FA",minHeight:"100vh",paddingBottom:90}}>
 
       {toast&&(
         <div style={{position:"fixed",top:16,right:16,left:16,maxWidth:400,margin:"0 auto",background:toast.color,color:C.white,padding:"12px 18px",borderRadius:12,fontSize:13,fontWeight:500,zIndex:999,textAlign:"center"}}>
@@ -795,6 +889,9 @@ function App(){
             </button>
             <button onClick={toggleHide} title={hideValues?"Show values":"Hide values"} style={{padding:"7px 9px",borderRadius:8,background:hideValues?"rgba(244,132,95,0.2)":"transparent",border:"none",color:hideValues?C.coral:"#9AAAC8",fontSize:16}}>
               <i className={`ti ${hideValues?"ti-eye-off":"ti-eye"}`} aria-hidden="true"/>
+            </button>
+            <button onClick={toggleDark} title={darkMode?"Light mode":"Dark mode"} style={{padding:"7px 9px",borderRadius:8,background:darkMode?"rgba(150,170,255,0.15)":"transparent",border:"none",color:darkMode?"#8899EE":"#9AAAC8",fontSize:16}}>
+              <i className={`ti ${darkMode?"ti-sun":"ti-moon"}`} aria-hidden="true"/>
             </button>
             <button onClick={()=>setModal("settings")} style={{padding:"7px 9px",borderRadius:8,background:"transparent",border:"none",color:"#9AAAC8",fontSize:16}}>
               <i className="ti ti-settings" aria-hidden="true"/>
@@ -1098,11 +1195,85 @@ function App(){
             </Card>
           )}
 
-          {/* Pie chart */}
+          {/* Pie chart + Category budgets */}
           <Card>
-            <SL icon="ti-chart-donut" text="AED spending by category"/>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <SL icon="ti-chart-donut" text="AED spending by category"/>
+              <button onClick={()=>setShowCatBudgets(v=>!v)} style={{fontSize:11,color:C.navyLight,background:"none",border:"none",padding:0,cursor:"pointer"}}>{showCatBudgets?"Hide budgets":"Set category budgets"}</button>
+            </div>
             <PieChart data={catTotals}/>
+            {showCatBudgets&&(
+              <div style={{marginTop:14,borderTop:`1.5px solid ${C.gray3}`,paddingTop:12}}>
+                <div style={{fontSize:11,fontWeight:500,color:C.textLight,marginBottom:10}}>MONTHLY BUDGET PER CATEGORY</div>
+                {CATEGORIES.map(cat=>{
+                  const cm=CAT_META[cat]||CAT_META.Other;
+                  const spent=catTotals.find(c=>c.label===cat)?.value||0;
+                  const budget=Number(catBudgets[cat]||0);
+                  const pct=budget>0?(spent/budget*100):0;
+                  return(
+                    <div key={cat} style={{marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                        <i className={`ti ${cm.icon}`} style={{fontSize:13,color:cm.text,width:16}}/>
+                        <span style={{fontSize:12,color:C.textMid,flex:1}}>{cat}</span>
+                        <span style={{fontSize:11,color:budget>0&&spent>budget?C.red:C.teal}}>{fmt(spent,"AED")}</span>
+                        <span style={{fontSize:10,color:C.textLight}}>/ </span>
+                        <input type="text" inputMode="decimal" value={catBudgets[cat]||""} onChange={e=>saveCatBudgets({...catBudgets,[cat]:e.target.value})} placeholder="no limit" style={{width:70,border:`1px solid ${C.gray3}`,borderRadius:7,padding:"3px 7px",fontSize:11,background:C.white,color:C.text,outline:"none"}}/>
+                      </div>
+                      {budget>0&&<PB pct={pct}/>}
+                      {budget>0&&spent>budget&&<div style={{fontSize:10,color:C.red,marginTop:2}}>Over by {fmt(spent-budget,"AED")}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
+
+          {/* Recurring entries */}
+          {recurringTemplates.length>0&&!isMonthLocked&&(
+            <Card>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <SL icon="ti-repeat" text="Recurring entries"/>
+                <span style={{fontSize:11,color:C.textLight}}>{recurringTemplates.length} template{recurringTemplates.length>1?"s":""}</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                {recurringTemplates.map(t=>{
+                  const alreadyThisMonth=(t.type==="expense"?expenses:income).some(e=>e.month===selMonth&&e.description===t.description&&Math.abs(Number(e.amount)-Number(t.amount))<0.01);
+                  const cm=t.type==="expense"?(CAT_META[t.category]||CAT_META.Other):null;
+                  return(
+                    <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:alreadyThisMonth?C.tealLight:C.gray1,borderRadius:10,border:`1.5px solid ${alreadyThisMonth?"#A7D7C5":C.gray3}`}}>
+                      {cm?<i className={`ti ${cm.icon}`} style={{fontSize:13,color:cm.text}}/>:<i className="ti ti-cash" style={{fontSize:13,color:C.teal}}/>}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:500,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.description}</div>
+                        <div style={{fontSize:10,color:C.textLight}}>{fmt(Number(t.amount),"AED")} · {t.type}</div>
+                      </div>
+                      {alreadyThisMonth?<span style={{fontSize:10,color:C.teal,fontWeight:500}}>✓ Added</span>:(
+                        <button onClick={async()=>{
+                          if(t.type==="expense"){
+                            const data={month:selMonth,amount:Number(t.amount),description:t.description,category:t.category,pay_type:t.payType||"Card",currency:"AED",date:new Date().toISOString().split("T")[0]};
+                            const tempId="tmp_"+Date.now();setExpenses(prev=>[...prev,{...data,id:tempId,_pending:true}]);
+                            try{const res=await db.post("expenses",data);if(Array.isArray(res)&&res[0])setExpenses(prev=>prev.map(e=>e.id===tempId?res[0]:e));}catch(e){saveQueue([...queue,{type:"expense",data,tempId}]);}
+                          } else {
+                            const data={month:selMonth,amount:Number(t.amount),description:t.description,currency:"AED",date:new Date().toISOString().split("T")[0]};
+                            const tempId="tmp_"+Date.now();setIncome(prev=>[...prev,{...data,id:tempId,_pending:true}]);
+                            try{const res=await db.post("income",data);if(Array.isArray(res)&&res[0])setIncome(prev=>prev.map(e=>e.id===tempId?res[0]:e));}catch(e){saveQueue([...queue,{type:"income",data,tempId}]);}
+                          }
+                          showToast("Recurring entry added!",C.teal);
+                        }} style={{background:C.navy,color:C.white,border:"none",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:500,cursor:"pointer"}}>+ Add</button>
+                      )}
+                      <button onClick={()=>saveRecurring(recurringTemplates.filter(r=>r.id!==t.id))} style={{background:"none",border:"none",color:C.gray4,fontSize:13,cursor:"pointer",padding:0}}><i className="ti ti-trash"/></button>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* Search bar */}
+          <div style={{display:"flex",alignItems:"center",gap:8,background:C.white,border:`1.5px solid ${C.gray3}`,borderRadius:12,padding:"8px 12px"}}>
+            <i className="ti ti-search" style={{color:C.textLight,fontSize:15,flexShrink:0}}/>
+            <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search transactions..." style={{border:"none",outline:"none",flex:1,fontSize:13,background:"transparent",color:C.text}} />
+            {searchQuery&&<button onClick={()=>setSearchQuery("")} style={{background:"none",border:"none",color:C.textLight,fontSize:14,cursor:"pointer",padding:0}}><i className="ti ti-x"/></button>}
+          </div>
 
           {/* Action buttons */}
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -1205,7 +1376,8 @@ function App(){
                   const cm=CAT_META[e.category]||CAT_META.Other;
                   const isSel=selectedIds.exp.has(e.id);
                   return(
-                    <div key={e.id} onClick={()=>selectMode&&toggleSelect("exp",e.id)} style={{...expRowStyle,border:`1.5px solid ${isSel?C.red:C.gray3}`,background:isSel?C.redLight:C.gray1,cursor:selectMode?"pointer":"default"}}>
+                    <SwipeRow key={e.id} disabled={selectMode||isMonthLocked} onDelete={()=>confirmAndDel("exp",e.id,e.description)}>
+                    <div onClick={()=>selectMode&&toggleSelect("exp",e.id)} style={{...expRowStyle,border:`1.5px solid ${isSel?C.red:C.gray3}`,background:isSel?C.redLight:C.gray1,cursor:selectMode?"pointer":"default"}}>
                       {selectMode&&(
                         <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${isSel?C.red:C.gray3}`,background:isSel?C.red:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                           {isSel&&<i className="ti ti-check" style={{fontSize:12,color:C.white}}/>}
@@ -1225,9 +1397,13 @@ function App(){
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:C.text}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
+                          <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();if(isMonthLocked)return;setEditData({type:"exp",item:e});setEditForm({amount:e.amount,description:e.description,category:e.category,payType:e.pay_type,date:e.date||""});setModal("editExp");}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:C.navy,fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-pencil" aria-hidden="true"/></button>
+                          <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>
+                        </div>}
                       </div>
                     </div>
+                    </SwipeRow>
                   );
                 })}
                 <div style={{textAlign:"right",paddingTop:8,borderTop:`1.5px solid ${C.gray3}`,fontSize:13,fontWeight:500,color:C.coral}}>
@@ -1255,10 +1431,11 @@ function App(){
                     <span style={{fontSize:12,fontWeight:500,color:allIncSel?C.red:C.textMid}}>{allIncSel?"Deselect all":"Select all"} income ({monthInc.length})</span>
                   </div>
                 )}
-                {monthInc.map(e=>{
+                {filteredInc.map(e=>{
                   const isSel=selectedIds.inc.has(e.id);
                   return(
-                  <div key={e.id} onClick={()=>selectMode&&toggleSelect("inc",e.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:isSel?C.redLight:C.tealLight,borderRadius:12,border:`1.5px solid ${isSel?C.red:"#A7D7C5"}`,cursor:selectMode?"pointer":"default"}}>
+                  <SwipeRow key={e.id} disabled={selectMode||isMonthLocked} onDelete={()=>confirmAndDel("inc",e.id,e.description)}>
+                  <div onClick={()=>selectMode&&toggleSelect("inc",e.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:isSel?C.redLight:C.tealLight,borderRadius:12,border:`1.5px solid ${isSel?C.red:"#A7D7C5"}`,cursor:selectMode?"pointer":"default"}}>
                     {selectMode&&(
                       <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${isSel?C.red:C.gray3}`,background:isSel?C.red:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                         {isSel&&<i className="ti ti-check" style={{fontSize:12,color:C.white}}/>}
@@ -1273,9 +1450,13 @@ function App(){
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontWeight:500,fontSize:13,color:C.teal}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
-                      {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                      {!selectMode&&<div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
+                        <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();if(isMonthLocked)return;setEditData({type:"inc",item:e});setEditForm({amount:e.amount,description:e.description,date:e.date||""});setModal("editInc");}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:C.navy,fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-pencil" aria-hidden="true"/></button>
+                        <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>
+                      </div>}
                     </div>
                   </div>
+                  </SwipeRow>
                 );})}
                 <div style={{textAlign:"right",paddingTop:8,borderTop:`1.5px solid ${C.gray3}`,fontSize:13,fontWeight:500,color:C.teal}}>
                   Total: {fmt(totalInc,"AED")}
@@ -1373,7 +1554,8 @@ function App(){
                   const cm=CAT_META[e.category]||CAT_META.Other;
                   const isSel=selectedIds.bdo.has(e.id);
                   return(
-                    <div key={e.id} onClick={()=>selectMode&&toggleSelect("bdo",e.id)} style={{...expRowStyle,background:isSel?C.redLight:"#EEF0FB",border:`1.5px solid ${isSel?C.red:"#C5CAE9"}`,cursor:selectMode?"pointer":"default"}}>
+                    <SwipeRow key={e.id} disabled={selectMode||isMonthLocked} onDelete={()=>confirmAndDel("bdo",e.id,e.description)}>
+                    <div onClick={()=>selectMode&&toggleSelect("bdo",e.id)} style={{...expRowStyle,background:isSel?C.redLight:"#EEF0FB",border:`1.5px solid ${isSel?C.red:"#C5CAE9"}`,cursor:selectMode?"pointer":"default"}}>
                       {selectMode&&(
                         <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${isSel?C.red:C.gray3}`,background:isSel?C.red:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                           {isSel&&<i className="ti ti-check" style={{fontSize:12,color:C.white}}/>}
@@ -1394,9 +1576,13 @@ function App(){
                       <div style={{textAlign:"right",flexShrink:0}}>
                         <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{hideValues?"••••":`${e.tx_type==="deposit"?"+":"-"}PHP ${Number(e.amount).toFixed(2)}`}</div>
                         {e.tx_type==="deposit"&&<div style={{fontSize:10,color:C.teal,marginTop:1}}>deposit</div>}
-                        {!selectMode&&<button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",marginTop:2,opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>}
+                        {!selectMode&&<div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
+                          <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();if(isMonthLocked)return;setEditData({type:"bdo",item:e});setEditForm({amount:e.amount,description:e.description,category:e.category||"",date:e.date||"",bdoType:e.tx_type||"expense"});setModal("editBDO");}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:C.navy,fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-pencil" aria-hidden="true"/></button>
+                          <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("bdo",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>
+                        </div>}
                       </div>
                     </div>
+                    </SwipeRow>
                   );
                 })}
               </div>
@@ -1610,8 +1796,11 @@ function App(){
                   </button>
                 ))}
               </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={addExp} disabled={syncing} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>{syncing?"Saving...":"Add expense"}</button>
+              <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,cursor:"pointer",fontSize:13,color:C.textMid}}>
+                <input type="checkbox" checked={!!form.recurring} onChange={e=>setForm(f=>({...f,recurring:e.target.checked}))} style={{width:16,height:16,accentColor:C.coral}}/>
+                Save as recurring template
+              </label>
+              <div style={{display:"flex",gap:8}}> style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>{syncing?"Saving...":"Add expense"}</button>
                 <button onClick={()=>{setModal(null);setForm({});}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14}}>Cancel</button>
               </div>
             </>}
@@ -1629,6 +1818,10 @@ function App(){
               <input type="text" inputMode="decimal" pattern="[0-9]*" placeholder="0.00" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} style={inp}/>
               <label style={lbl}>Description</label>
               <input placeholder="e.g. Angel Salary" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={inp}/>
+              <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,cursor:"pointer",fontSize:13,color:C.textMid}}>
+                <input type="checkbox" checked={!!form.recurring} onChange={e=>setForm(f=>({...f,recurring:e.target.checked}))} style={{width:16,height:16,accentColor:C.teal}}/>
+                Save as recurring template
+              </label>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={addInc} disabled={syncing} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.teal,color:C.white,fontWeight:500,fontSize:14}}>{syncing?"Saving...":"Add income"}</button>
                 <button onClick={()=>{setModal(null);setForm({});}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14}}>Cancel</button>
@@ -1679,6 +1872,56 @@ function App(){
               <div style={{display:"flex",gap:8,marginTop:4}}>
                 <button onClick={addBDO} disabled={syncing} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:(form.bdoType||"expense")==="deposit"?C.teal:C.navy,color:C.white,fontWeight:500,fontSize:14}}>{syncing?"Saving...":(form.bdoType||"expense")==="deposit"?"Add Deposit":"Add Expense"}</button>
                 <button onClick={()=>{setModal(null);setForm({});}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14}}>Cancel</button>
+              </div>
+            </>}
+
+            {modal==="editExp"&&editData&&<>
+              <div style={{fontWeight:500,fontSize:15,marginBottom:14,color:C.text}}>Edit Expense</div>
+              <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                {CATEGORIES.map(c=>{const cm=CAT_META[c],sel=editForm.category===c;return(
+                  <button key={c} onClick={()=>setEditForm(f=>({...f,category:c}))} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:20,border:`1.5px solid ${sel?cm.border:C.gray3}`,background:sel?cm.bg:"transparent",color:sel?cm.text:C.textMid,fontSize:12,fontWeight:sel?600:400,cursor:"pointer"}}>
+                    <span>{cm.icon}</span>{c}
+                  </button>
+                );})}
+              </div>
+              <input type="text" inputMode="decimal" value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} style={{...inp,marginBottom:8}} placeholder="Amount (AED)"/>
+              <input type="text" value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} style={{...inp,marginBottom:8}} placeholder="Description"/>
+              <input type="date" value={editForm.date||""} onChange={e=>setEditForm(f=>({...f,date:e.target.value}))} style={{...inp,marginBottom:8}}/>
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                {["Card","Cash On Hand"].map(pt=>(
+                  <button key={pt} onClick={()=>setEditForm(f=>({...f,payType:pt}))} style={{flex:1,padding:"10px",borderRadius:10,border:`1.5px solid ${editForm.payType===pt?C.navy:C.gray3}`,background:editForm.payType===pt?"#EEF0FB":"transparent",color:editForm.payType===pt?C.navy:C.textMid,fontSize:12,fontWeight:editForm.payType===pt?600:400,cursor:"pointer"}}>{pt}</button>
+                ))}
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{saveEditExp();setModal(null);}} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>Save</button>
+                <button onClick={()=>{setModal(null);setEditData(null);}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:"transparent",color:C.textMid,fontSize:14}}>Cancel</button>
+              </div>
+            </>}
+
+            {modal==="editInc"&&editData&&<>
+              <div style={{fontWeight:500,fontSize:15,marginBottom:14,color:C.text}}>Edit Income</div>
+              <input type="text" inputMode="decimal" value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} style={{...inp,marginBottom:8}} placeholder="Amount (AED)"/>
+              <input type="text" value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} style={{...inp,marginBottom:8}} placeholder="Description"/>
+              <input type="date" value={editForm.date||""} onChange={e=>setEditForm(f=>({...f,date:e.target.value}))} style={{...inp,marginBottom:14}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{saveEditInc();setModal(null);}} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.teal,color:C.white,fontWeight:500,fontSize:14}}>Save</button>
+                <button onClick={()=>{setModal(null);setEditData(null);}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:"transparent",color:C.textMid,fontSize:14}}>Cancel</button>
+              </div>
+            </>}
+
+            {modal==="editBDO"&&editData&&<>
+              <div style={{fontWeight:500,fontSize:15,marginBottom:14,color:C.text}}>Edit BDO Transaction</div>
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                {["expense","deposit"].map(t=>(
+                  <button key={t} onClick={()=>setEditForm(f=>({...f,bdoType:t}))} style={{flex:1,padding:"10px",borderRadius:10,border:`1.5px solid ${editForm.bdoType===t?(t==="deposit"?C.teal:C.navy):C.gray3}`,background:editForm.bdoType===t?(t==="deposit"?"#E6F4F1":"#EEF0FB"):"transparent",color:editForm.bdoType===t?(t==="deposit"?C.teal:C.navy):C.textMid,fontSize:12,fontWeight:editForm.bdoType===t?600:400,cursor:"pointer",textTransform:"capitalize"}}>{t}</button>
+                ))}
+              </div>
+              <input type="text" inputMode="decimal" value={editForm.amount||""} onChange={e=>setEditForm(f=>({...f,amount:e.target.value}))} style={{...inp,marginBottom:8}} placeholder="Amount (PHP)"/>
+              <input type="text" value={editForm.description||""} onChange={e=>setEditForm(f=>({...f,description:e.target.value}))} style={{...inp,marginBottom:8}} placeholder="Description"/>
+              <input type="date" value={editForm.date||""} onChange={e=>setEditForm(f=>({...f,date:e.target.value}))} style={{...inp,marginBottom:14}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{saveEditBDO();setModal(null);}} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.navy,color:C.white,fontWeight:500,fontSize:14}}>Save</button>
+                <button onClick={()=>{setModal(null);setEditData(null);}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:"transparent",color:C.textMid,fontSize:14}}>Cancel</button>
               </div>
             </>}
 
