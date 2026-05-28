@@ -99,6 +99,7 @@ const DARK_C={
   gray1:"#1A1C2C",gray2:"#22253A",gray3:"#383C55",gray4:"#7878A0",
   white:"#1E2135",text:"#E4E4F0",textMid:"#A0A2C0",textLight:"#66688E",
 };
+const C=LIGHT_C; // top-level fallback for components defined outside App
 
 const fmtN=(n,cur="AED")=>`${cur} ${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 
