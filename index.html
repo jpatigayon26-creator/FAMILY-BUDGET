@@ -1801,7 +1801,8 @@ function App(){
                 <input type="checkbox" checked={!!form.recurring} onChange={e=>setForm(f=>({...f,recurring:e.target.checked}))} style={{width:16,height:16,accentColor:C.coral}}/>
                 Save as recurring template
               </label>
-              <div style={{display:"flex",gap:8}}> style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>{syncing?"Saving...":"Add expense"}</button>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={addExp} disabled={syncing} style={{flex:1,padding:"13px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>{syncing?"Saving...":"Add expense"}</button>
                 <button onClick={()=>{setModal(null);setForm({});}} style={{flex:1,padding:"13px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14}}>Cancel</button>
               </div>
             </>}
