@@ -99,7 +99,10 @@ const DARK_C={
   gray1:"#1A1C2C",gray2:"#22253A",gray3:"#383C55",gray4:"#7878A0",
   white:"#1E2135",text:"#E4E4F0",textMid:"#A0A2C0",textLight:"#66688E",
 };
-const C=LIGHT_C; // top-level fallback for components defined outside App
+// Bright accent text colors that stay readable on their surfaces in each mode
+LIGHT_C.tealHero="#BFEFDD"; DARK_C.tealHero="#5FE0B0"; // text on always-dark navy cards
+LIGHT_C.tealText="#157A5A"; DARK_C.tealText="#6FE3B8"; // text on tealLight pill bg
+let C=LIGHT_C; // mutable; App reassigns each render so top-level components track the active palette
 
 const fmtN=(n,cur="AED")=>`${cur} ${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 
@@ -160,8 +163,6 @@ const StableInput=React.memo(function StableInput({initialValue,onSave,placehold
   });
 },(prev,next)=>prev.disabled===next.disabled); // only re-render when disabled changes
 
-const inp={width:"100%",boxSizing:"border-box",marginBottom:10,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"9px 12px",fontSize:14,background:C.white,color:C.text};
-const lbl={fontSize:12,color:C.textMid,display:"block",marginBottom:4,fontWeight:500};
 const Card=({children,style={}})=>(
   <div style={{background:C.white,border:`1.5px solid ${C.gray3}`,borderRadius:16,padding:"1.25rem",...style}}>{children}</div>
 );
@@ -228,7 +229,9 @@ function SwipeRow({onDelete,disabled,children,style={}}){
 function App(){
   const[darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("dark_mode")==="1";}catch{return false;}});
   const toggleDark=()=>{const n=!darkMode;setDarkMode(n);try{localStorage.setItem("dark_mode",n?"1":"0");}catch{}};
-  const C=darkMode?DARK_C:LIGHT_C;
+  C=darkMode?DARK_C:LIGHT_C; // reassign module-level C so top-level components (Card, SL, MC, PieChart, PB) use the active palette
+  const inp={width:"100%",boxSizing:"border-box",marginBottom:10,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"9px 12px",fontSize:14,background:C.white,color:C.text};
+  const lbl={fontSize:12,color:C.textMid,display:"block",marginBottom:4,fontWeight:500};
   const[view,setView]=useState("dashboard");
   const[hideValues,setHideValues]=useState(false);
   const toggleHide=()=>setHideValues(v=>!v);
@@ -927,7 +930,7 @@ function App(){
                 {/* PHP — auto-converted */}
                 <div style={{borderLeft:"1.5px solid rgba(255,255,255,0.2)",paddingLeft:16}}>
                   <div style={{color:"rgba(255,255,255,0.65)",fontSize:10,fontWeight:500,marginBottom:6}}>PHP SAVINGS (CONVERTED)</div>
-                  <div style={{color:C.tealLight,fontSize:22,fontWeight:500,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>
+                  <div style={{color:C.tealHero,fontSize:22,fontWeight:500,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>
                     {rateLoading?"Loading...":(aedToPhp?fmt(totalSavingsAED*aedToPhp,"PHP"):"No rate")}
                   </div>
                   <div style={{marginTop:10,fontSize:10,color:"rgba(255,255,255,0.5)"}}>
@@ -1281,7 +1284,7 @@ function App(){
             {!isMonthLocked&&<button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className={`ti ${selectMode?"ti-x":"ti-select"}`} aria-hidden="true" style={{fontSize:17}}/>{selectMode?"Cancel":"Select"}
             </button>}
-            <button onClick={()=>setModal("export")} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+            <button onClick={()=>setModal("export")} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealText,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className="ti ti-file-spreadsheet" aria-hidden="true" style={{fontSize:17}}/>Export
             </button>
           </div>
@@ -1446,8 +1449,8 @@ function App(){
                       <i className="ti ti-cash" aria-hidden="true" style={{fontSize:15,color:C.teal}}/>
                     </div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:500,fontSize:13,color:C.tealDark}}>{e.description}</div>
-                      <div style={{fontSize:11,color:"#2D7A5E",marginTop:2}}>{e.date||"No date"}</div>
+                      <div style={{fontWeight:500,fontSize:13,color:C.tealText}}>{e.description}</div>
+                      <div style={{fontSize:11,color:C.tealText,marginTop:2}}>{e.date||"No date"}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontWeight:500,fontSize:13,color:C.teal}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
@@ -1501,7 +1504,7 @@ function App(){
             </div>
             {prevMonthClosing!==null&&(
               <div style={{background:"rgba(255,255,255,0.07)",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,color:"#9AAAC8",display:"flex",alignItems:"center",gap:6}}>
-                <i className="ti ti-arrow-forward"/> Carried over from {MONTHS[selMonth-2]}: <strong style={{color:C.tealLight}}>{fmt(prevMonthClosing,"PHP")}</strong>
+                <i className="ti ti-arrow-forward"/> Carried over from {MONTHS[selMonth-2]}: <strong style={{color:C.tealHero}}>{fmt(prevMonthClosing,"PHP")}</strong>
               </div>
             )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1511,12 +1514,12 @@ function App(){
               </div>
               <div style={{borderLeft:`1.5px solid ${C.navyLight}`,paddingLeft:12}}>
                 <div style={{color:"#9AAAC8",fontSize:10,marginBottom:4}}>CURRENT BALANCE</div>
-                <div style={{color:running>=0?C.tealLight:C.red,fontSize:20,fontWeight:500}}>{fmt(running,"PHP")}</div>
+                <div style={{color:running>=0?C.tealHero:C.red,fontSize:20,fontWeight:500}}>{fmt(running,"PHP")}</div>
               </div>
             </div>
             <div style={{marginTop:12,display:"flex",gap:16,fontSize:11}}>
               <span style={{color:"#9AAAC8"}}>Spent: <span style={{color:C.red}}>{fmt(totalBDOExpenses,"PHP")}</span></span>
-              {totalBDODeposits>0&&<span style={{color:"#9AAAC8"}}>Deposited: <span style={{color:C.tealLight}}>{fmt(totalBDODeposits,"PHP")}</span></span>}
+              {totalBDODeposits>0&&<span style={{color:"#9AAAC8"}}>Deposited: <span style={{color:C.tealHero}}>{fmt(totalBDODeposits,"PHP")}</span></span>}
             </div>
           </div>
 
@@ -1624,7 +1627,7 @@ function App(){
                   </div>
                 </div>
                 {checked.length>0&&(
-                  <div style={{background:C.tealLight,borderRadius:10,padding:"8px 12px",fontSize:12,color:C.tealDark,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{background:C.tealLight,borderRadius:10,padding:"8px 12px",fontSize:12,color:C.tealText,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                     <span>✅ {checked.length} item{checked.length>1?"s":""} done · {fmt(checkedTotal,"AED")}</span>
                     <button onClick={async()=>{
                       const done=groceryList.filter(i=>i.checked);
@@ -1771,7 +1774,7 @@ function App(){
                 </div>
                 <span style={{fontWeight:500,fontSize:15,color:C.text}}>Add AED expense · {MONTHS[selMonth-1]}</span>
               </div>
-              <div style={{background:C.tealLight,border:`1px solid #A7D7C5`,borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12,color:C.tealDark}}>
+              <div style={{background:C.tealLight,border:`1px solid #A7D7C5`,borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12,color:C.tealText}}>
                 <i className="ti ti-info-circle" aria-hidden="true"/> Only Card and Cash On Hand — BDO goes in the BDO tab
               </div>
               <label style={lbl}>Date</label>
@@ -1882,7 +1885,7 @@ function App(){
               <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                 {CATEGORIES.map(c=>{const cm=CAT_META[c],sel=editForm.category===c;return(
                   <button key={c} onClick={()=>setEditForm(f=>({...f,category:c}))} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:20,border:`1.5px solid ${sel?cm.border:C.gray3}`,background:sel?cm.bg:"transparent",color:sel?cm.text:C.textMid,fontSize:12,fontWeight:sel?600:400,cursor:"pointer"}}>
-                    <span>{cm.icon}</span>{c}
+                    <i className={`ti ${cm.icon}`} aria-hidden="true"/>{c}
                   </button>
                 );})}
               </div>
@@ -1944,7 +1947,7 @@ function App(){
               <div style={{fontWeight:500,fontSize:15,marginBottom:6,color:C.text}}>Export to Excel</div>
               <div style={{fontSize:12,color:C.textMid,marginBottom:16}}>Choose what to export. Layout matches your original Excel sheet.</div>
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <button onClick={()=>exportExcel(selMonth)} style={{padding:"14px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealDark,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <button onClick={()=>exportExcel(selMonth)} style={{padding:"14px",borderRadius:12,border:`1.5px solid ${C.teal}`,background:C.tealLight,color:C.tealText,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <i className="ti ti-file-spreadsheet" style={{fontSize:18}}/> Export {MONTHS[selMonth-1]} only
                 </button>
                 <button onClick={()=>exportExcel(-1)} style={{padding:"14px",borderRadius:12,border:`1.5px solid ${C.navy}`,background:"#EEF0FB",color:C.navy,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
@@ -1956,7 +1959,7 @@ function App(){
 
             {modal==="settings"&&<>
               <div style={{fontWeight:500,fontSize:15,marginBottom:16,color:C.text}}>Settings</div>
-              <div style={{background:C.tealLight,border:`1px solid #A7D7C5`,borderRadius:10,padding:"12px 14px",marginBottom:16,fontSize:13,color:C.tealDark}}>
+              <div style={{background:C.tealLight,border:`1px solid #A7D7C5`,borderRadius:10,padding:"12px 14px",marginBottom:16,fontSize:13,color:C.tealText}}>
                 <i className="ti ti-cloud" aria-hidden="true" style={{marginRight:6}}/>
                 Connected to Supabase — syncs across all devices.
               </div>
@@ -1986,17 +1989,17 @@ function App(){
       {/* Confirm delete overlay */}
       {confirmDel&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:"0 1rem"}}>
-          <div style={{background:"#fff",borderRadius:18,padding:"1.5rem",width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}}>
-            <div style={{width:48,height:48,borderRadius:14,background:"#FEE2E2",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
-              <i className="ti ti-trash" style={{fontSize:24,color:"#DC2626"}}/>
+          <div style={{background:C.white,borderRadius:18,padding:"1.5rem",width:"100%",maxWidth:360,boxShadow:"0 8px 32px rgba(0,0,0,0.25)"}}>
+            <div style={{width:48,height:48,borderRadius:14,background:C.redLight,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+              <i className="ti ti-trash" style={{fontSize:24,color:C.red}}/>
             </div>
-            <div style={{textAlign:"center",fontWeight:500,fontSize:16,color:"#1A1A2E",marginBottom:8}}>Delete this entry?</div>
-            <div style={{textAlign:"center",fontSize:13,color:"#4A4A6A",marginBottom:20,lineHeight:1.5}}>
+            <div style={{textAlign:"center",fontWeight:500,fontSize:16,color:C.text,marginBottom:8}}>Delete this entry?</div>
+            <div style={{textAlign:"center",fontSize:13,color:C.textMid,marginBottom:20,lineHeight:1.5}}>
               <strong>{confirmDel.label}</strong> will be permanently deleted.
             </div>
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:"1.5px solid #D0D0D0",background:"#fff",color:"#4A4A6A",fontSize:14,fontWeight:500}}>Cancel</button>
-              <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"#DC2626",color:"#fff",fontSize:14,fontWeight:500}}>Yes, delete</button>
+              <button onClick={()=>setConfirmDel(null)} style={{flex:1,padding:"12px",borderRadius:12,border:`1.5px solid ${C.gray3}`,background:C.white,color:C.textMid,fontSize:14,fontWeight:500}}>Cancel</button>
+              <button onClick={execDel} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:C.red,color:"#fff",fontSize:14,fontWeight:500}}>Yes, delete</button>
             </div>
           </div>
         </div>
