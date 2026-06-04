@@ -917,9 +917,6 @@ function App(){
                 <i className={`ti ${icon}`} aria-hidden="true" style={{fontSize:14}}/><span className="hide-mobile">{label}</span>
               </button>
             ))}
-            <select value={selYear} onChange={e=>setSelYear(Number(e.target.value))} style={{padding:"7px 6px",borderRadius:8,background:"rgba(0,0,0,0.2)",border:"none",color:"#9AAAC8",fontSize:12,fontWeight:500,cursor:"pointer",width:54,appearance:"none",WebkitAppearance:"none",textAlign:"center"}}>
-              {[2024,2025,2026,2027,2028,2029,2030].map(y=><option key={y} value={y} style={{background:"#1B2A4A"}}>{y}</option>)}
-            </select>
             <button onClick={loadAll} style={{padding:"7px 9px",borderRadius:8,background:"transparent",border:"none",color:"#9AAAC8",fontSize:16}} title="Refresh">
               <i className="ti ti-refresh" aria-hidden="true"/>
             </button>
@@ -1120,7 +1117,10 @@ function App(){
               <i className="ti ti-chevron-left" aria-hidden="true" style={{fontSize:18,color:C.text}}/>
             </button>
             <select value={selMonth} onChange={e=>setSelMonth(Number(e.target.value))} style={{flex:1,fontWeight:500,fontSize:15,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"8px 12px",background:C.white,color:C.text}}>
-              {MONTHS.map((m,i)=><option key={i} value={i+1}>{m} {selYear}</option>)}
+              {MONTHS.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+            </select>
+            <select value={selYear} onChange={e=>setSelYear(Number(e.target.value))} style={{fontWeight:500,fontSize:14,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"8px 10px",background:C.white,color:C.text,flexShrink:0}}>
+              {[2024,2025,2026,2027,2028,2029,2030].map(y=><option key={y} value={y}>{y}</option>)}
             </select>
             <button onClick={()=>setSelMonth(m=>Math.min(12,m+1))} disabled={selMonth===12} style={{width:38,height:38,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1.5px solid ${C.gray3}`,background:C.white,color:C.text,opacity:selMonth===12?0.35:1,flexShrink:0}}>
               <i className="ti ti-chevron-right" aria-hidden="true" style={{fontSize:18,color:C.text}}/>
