@@ -129,7 +129,7 @@ function PieChart({data}){
         {slices.map((s,i)=><path key={i} d={s.path} fill={CAT_CHART[s.label]||"#ccc"} stroke={C.white} strokeWidth="2"/>)}
         <circle cx="88" cy="88" r="38" fill={C.white}/>
         <text x="88" y="84" textAnchor="middle" fontSize="10" fill={C.gray4}>total</text>
-        <text x="88" y="100" textAnchor="middle" fontSize="11" fontWeight="600" fill={C.text}>{Number(total).toFixed(0)}</text>
+        <text x="88" y="100" textAnchor="middle" fontSize="11" fontWeight="600" fill={C.text}>{Number(total).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}</text>
       </svg>
       <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,minWidth:100}}>
         {slices.map((s,i)=>(
@@ -1072,10 +1072,10 @@ function App(){
                   {yearRows.filter(Boolean).map((r,i)=>(
                     <tr key={i} onClick={()=>{setSelMonth(i+1);setView("monthly");}} style={{cursor:"pointer",background:(i+1)===selMonth?C.coralLight:C.white,borderBottom:`1px solid ${C.gray2}`}}>
                       <td style={{padding:"8px 5px",fontWeight:i===selMonth?500:400,color:i===selMonth?C.coral:C.text}}>{r.month.slice(0,3)}</td>
-                      <td style={{padding:"8px 5px",color:C.teal}}>{r.income?(hideValues?"••••":`${r.income.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px",color:C.coral}}>{r.expenses?(hideValues?"••••":`${r.expenses.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px",color:r.over?C.red:C.teal,fontWeight:500}}>{r.income?(hideValues?"••••":`${r.balance.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px",color:C.navyLight}}>{r.savings?(hideValues?"••••":`${r.savings.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.teal}}>{r.income?(hideValues?"••••":`${Number(r.income).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.coral}}>{r.expenses?(hideValues?"••••":`${Number(r.expenses).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:r.over?C.red:C.teal,fontWeight:500}}>{r.income?(hideValues?"••••":`${Number(r.balance).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.navyLight}}>{r.savings?(hideValues?"••••":`${Number(r.savings).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`):"—"}</td>
                       <td style={{padding:"8px 5px"}}>{r.income>0?<><span style={{fontSize:11,fontWeight:500,color:r.pct>=100?C.red:r.pct>=85?C.amber:C.teal}}>{hideValues?"••":r.pct.toFixed(0)+"%"}</span>{!hideValues&&<PB pct={r.pct}/>}</>:"—"}</td>
                     </tr>
                   ))}
@@ -1129,7 +1129,7 @@ function App(){
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
             <MC label="Total income" value={fmt(totalInc,"AED")} icon="ti-cash" bg={C.tealLight} ic={C.teal} vc={C.tealDark}/>
             <MC label="Card expenses" value={fmt(totalCardExp,"AED")} icon="ti-credit-card" bg={C.coralLight} ic={C.coral} vc={C.coralDark} sub="Deducted from balance"/>
-            <MC label="Withdraw / Cash" value={fmt(withdraw,"AED")} icon="ti-cash-banknote" bg={cashOverspent?C.redLight:C.amberLight} ic={cashOverspent?C.red:C.amber} vc={cashOverspent?C.red:"#92400E"} sub={withdraw>0?`AED ${cashRemaining.toFixed(2)} remaining cash`:"Set withdraw in settings"}/>
+            <MC label="Withdraw / Cash" value={fmt(withdraw,"AED")} icon="ti-cash-banknote" bg={cashOverspent?C.redLight:C.amberLight} ic={cashOverspent?C.red:C.amber} vc={cashOverspent?C.red:"#92400E"} sub={withdraw>0?`AED ${Number(cashRemaining).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})} remaining cash`:"Set withdraw in settings"}/>
             <MC label="Balance" value={fmt(balance,"AED")} icon="ti-scale" bg={balance>=0?"#EEF0FB":C.redLight} ic={balance>=0?C.navyLight:C.red} vc={balance>=0?C.navy:C.red}/>
           </div>
 
@@ -1486,7 +1486,7 @@ function App(){
                         </div>
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontWeight:500,fontSize:13,color:C.text}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
+                        <div style={{fontWeight:500,fontSize:13,color:C.text}}>{hideValues?"••••":`AED ${Number(e.amount).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`}</div>
                         {!selectMode&&<div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
                           <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();if(isMonthLocked)return;setEditData({type:"exp",item:e});setEditForm({amount:e.amount,description:e.description,category:e.category,payType:e.pay_type,date:e.date||""});setModal("editExp");}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:C.navy,fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-pencil" aria-hidden="true"/></button>
                           <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("exp",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>
@@ -1539,7 +1539,7 @@ function App(){
                       <div style={{fontSize:11,color:C.tealText,marginTop:2}}>{e.date||"No date"}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontWeight:500,fontSize:13,color:C.teal}}>{hideValues?"••••":`AED ${Number(e.amount).toFixed(2)}`}</div>
+                      <div style={{fontWeight:500,fontSize:13,color:C.teal}}>{hideValues?"••••":`AED ${Number(e.amount).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`}</div>
                       {!selectMode&&<div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
                         <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();if(isMonthLocked)return;setEditData({type:"inc",item:e});setEditForm({amount:e.amount,description:e.description,date:e.date||""});setModal("editInc");}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:C.navy,fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-pencil" aria-hidden="true"/></button>
                         <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();confirmAndDel("inc",e.id,e.description);}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:"#EF4444",fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-trash" aria-hidden="true"/></button>
@@ -1664,7 +1664,7 @@ function App(){
                         </div>
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{hideValues?"••••":`${e.tx_type==="deposit"?"+":"-"}PHP ${Number(e.amount).toFixed(2)}`}</div>
+                        <div style={{fontWeight:500,fontSize:13,color:e.tx_type==="deposit"?C.teal:C.red}}>{hideValues?"••••":`${e.tx_type==="deposit"?"+":"-"}PHP ${Number(e.amount).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`}</div>
                         {e.tx_type==="deposit"&&<div style={{fontSize:10,color:C.teal,marginTop:1}}>deposit</div>}
                         {!selectMode&&<div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:2}}>
                           <button onClick={ev=>{ev.preventDefault();ev.stopPropagation();if(isMonthLocked)return;setEditData({type:"bdo",item:e});setEditForm({amount:e.amount,description:e.description,category:e.category||"",date:e.date||"",bdoType:e.tx_type||"expense"});setModal("editBDO");}} disabled={isMonthLocked} style={{background:"none",border:"none",color:isMonthLocked?C.gray3:C.navy,fontSize:14,padding:"2px 0",opacity:isMonthLocked?0.3:1,cursor:isMonthLocked?"not-allowed":"pointer"}}><i className="ti ti-pencil" aria-hidden="true"/></button>
