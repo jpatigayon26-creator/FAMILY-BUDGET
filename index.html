@@ -951,32 +951,6 @@ function App(){
             </div>
           </div>
 
-          {/* Yearly table */}
-          <Card>
-            <SL icon="ti-table" text="Yearly overview"/>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
-                <colgroup><col style={{width:"16%"}}/><col style={{width:"19%"}}/><col style={{width:"19%"}}/><col style={{width:"19%"}}/><col style={{width:"13%"}}/><col style={{width:"14%"}}/></colgroup>
-                <thead><tr>{["Month","Income","Expenses","Balance","Savings","% Used"].map(h=>(
-                  <th key={h} style={{textAlign:"left",padding:"7px 5px",fontWeight:500,color:C.textLight,fontSize:10,borderBottom:`1.5px solid ${C.gray3}`}}>{h}</th>
-                ))}</tr></thead>
-                <tbody>
-                  {yearRows.filter(Boolean).map((r,i)=>(
-                    <tr key={i} onClick={()=>{setSelMonth(i+1);setView("monthly");}} style={{cursor:"pointer",background:(i+1)===selMonth?C.coralLight:C.white,borderBottom:`1px solid ${C.gray2}`}}>
-                      <td style={{padding:"8px 5px",fontWeight:i===selMonth?500:400,color:i===selMonth?C.coral:C.text}}>{r.month.slice(0,3)}</td>
-                      <td style={{padding:"8px 5px",color:C.teal}}>{r.income?(hideValues?"••••":`${r.income.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px",color:C.coral}}>{r.expenses?(hideValues?"••••":`${r.expenses.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px",color:r.over?C.red:C.teal,fontWeight:500}}>{r.income?(hideValues?"••••":`${r.balance.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px",color:C.navyLight}}>{r.savings?(hideValues?"••••":`${r.savings.toFixed(0)}`):"—"}</td>
-                      <td style={{padding:"8px 5px"}}>{r.income>0?<><span style={{fontSize:11,fontWeight:500,color:r.pct>=100?C.red:r.pct>=85?C.amber:C.teal}}>{hideValues?"••":r.pct.toFixed(0)+"%"}</span>{!hideValues&&<PB pct={r.pct}/>}</>:"—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div style={{marginTop:8,fontSize:11,color:C.textLight,textAlign:"center"}}>Tap any month to open it</div>
-          </Card>
-
           {/* Bible Verse of the Day */}
           <div style={{background:"linear-gradient(135deg, #2D4A3E 0%, #1E3A2F 100%)",borderRadius:18,padding:"1.5rem",position:"relative",overflow:"hidden"}}>
             {/* Decorative circles */}
@@ -1009,6 +983,34 @@ function App(){
               <p style={{fontSize:11,color:"rgba(255,255,255,0.65)",margin:0,lineHeight:1.65,fontStyle:"normal"}}>{bibleVerse?.reflection}</p>
             </div>
           </div>
+
+
+          {/* Yearly table */}
+          <Card>
+            <SL icon="ti-table" text="Yearly overview"/>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+                <colgroup><col style={{width:"16%"}}/><col style={{width:"19%"}}/><col style={{width:"19%"}}/><col style={{width:"19%"}}/><col style={{width:"13%"}}/><col style={{width:"14%"}}/></colgroup>
+                <thead><tr>{["Month","Income","Expenses","Balance","Savings","% Used"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"7px 5px",fontWeight:500,color:C.textLight,fontSize:10,borderBottom:`1.5px solid ${C.gray3}`}}>{h}</th>
+                ))}</tr></thead>
+                <tbody>
+                  {yearRows.filter(Boolean).map((r,i)=>(
+                    <tr key={i} onClick={()=>{setSelMonth(i+1);setView("monthly");}} style={{cursor:"pointer",background:(i+1)===selMonth?C.coralLight:C.white,borderBottom:`1px solid ${C.gray2}`}}>
+                      <td style={{padding:"8px 5px",fontWeight:i===selMonth?500:400,color:i===selMonth?C.coral:C.text}}>{r.month.slice(0,3)}</td>
+                      <td style={{padding:"8px 5px",color:C.teal}}>{r.income?(hideValues?"••••":`${r.income.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.coral}}>{r.expenses?(hideValues?"••••":`${r.expenses.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:r.over?C.red:C.teal,fontWeight:500}}>{r.income?(hideValues?"••••":`${r.balance.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px",color:C.navyLight}}>{r.savings?(hideValues?"••••":`${r.savings.toFixed(0)}`):"—"}</td>
+                      <td style={{padding:"8px 5px"}}>{r.income>0?<><span style={{fontSize:11,fontWeight:500,color:r.pct>=100?C.red:r.pct>=85?C.amber:C.teal}}>{hideValues?"••":r.pct.toFixed(0)+"%"}</span>{!hideValues&&<PB pct={r.pct}/>}</>:"—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{marginTop:8,fontSize:11,color:C.textLight,textAlign:"center"}}>Tap any month to open it</div>
+          </Card>
+
 
         </div>
       )}
