@@ -287,6 +287,10 @@ function App(){
   const[recurringTemplates,setRecurringTemplates]=useState(()=>{try{const r=localStorage.getItem("recurring_templates");return r?JSON.parse(r):[];}catch{return[];}});
   const[catBudgets,setCatBudgets]=useState(()=>{try{const b=localStorage.getItem("cat_budgets");return b?JSON.parse(b):{};}catch{return{};}});
   const[showCatBudgets,setShowCatBudgets]=useState(false);
+  const[bills,setBills]=useState([]);
+  const[billForm,setBillForm]=useState({name:"",amount:"",dueDay:"1",category:"Bills",currency:"AED"});
+  const[goals,setGoals]=useState([]);
+  const[goalForm,setGoalForm]=useState({name:"",target:"",saved:"",currency:"AED",emoji:"🎯",deadline:""});
   const toggleLock=(month)=>{
     const locked=lockedMonths.includes(month);
     if(locked){setUnlockPrompt(month);return;}
@@ -303,6 +307,8 @@ function App(){
   };
   const saveRecurring=(templates)=>{try{localStorage.setItem("recurring_templates",JSON.stringify(templates));}catch{}setRecurringTemplates(templates);};
   const saveCatBudgets=(budgets)=>{try{localStorage.setItem("cat_budgets",JSON.stringify(budgets));}catch{}setCatBudgets(budgets);};
+  const saveBills=(list)=>{setBills(list);};
+  const saveGoals=(list)=>{setGoals(list);};
   const saveGrocery=(list)=>{
     try{localStorage.setItem("grocery_list",JSON.stringify(list));}catch{}
     setGroceryList(list);
@@ -396,12 +402,14 @@ function App(){
   const loadAll=useCallback(async()=>{
     setLoading(true);
     try{
-      const[exp,inc,bdo,ms,sav]=await Promise.all([
+      const[exp,inc,bdo,ms,sav,bls,gls]=await Promise.all([
         db.get("expenses","?order=created_at.asc"),
         db.get("income","?order=created_at.asc"),
         db.get("bdo_transactions","?order=date.asc,created_at.asc"),
         db.get("month_settings",""),
         db.get("savings","?id=eq.1"),
+        db.get("bills","?order=id.asc"),
+        db.get("savings_goals","?order=id.asc"),
       ]);
       setExpenses(Array.isArray(exp)?exp:[]);
       setIncome(Array.isArray(inc)?inc:[]);
@@ -410,6 +418,8 @@ function App(){
       if(Array.isArray(ms))ms.forEach(r=>{msMap[r.month]=r;});
       setMonthSettings(msMap);
       if(Array.isArray(sav)&&sav.length>0)setSavingsState({aed:Number(sav[0].aed),php:Number(sav[0].php)});
+      if(Array.isArray(bls))setBills(bls.map(b=>({...b,paid_months:b.paid_months||[]})));
+      if(Array.isArray(gls))setGoals(gls);
     }catch(e){showToast("Connection error — check Supabase",C.red);}
     setLoading(false);
   },[]);
@@ -883,7 +893,7 @@ function App(){
             </div>
           </div>
           <div style={{display:"flex",gap:3,background:C.navyDark,borderRadius:12,padding:4}}>
-            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"],["Grocery","ti-shopping-cart","grocery"]].map(([label,icon,v])=>(
+            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"],["Grocery","ti-shopping-cart","grocery"],["Bills","ti-file-invoice","bills"],["Goals","ti-target","goals"]].map(([label,icon,v])=>(
               <button key={v} onClick={()=>setView(v)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 10px",borderRadius:9,background:view===v?C.coral:"transparent",color:view===v?C.white:"#9AAAC8",border:"none",fontWeight:view===v?500:400,fontSize:12}}>
                 <i className={`ti ${icon}`} aria-hidden="true" style={{fontSize:14}}/><span className="hide-mobile">{label}</span>
               </button>
@@ -1757,6 +1767,205 @@ function App(){
             </Card>
           )}
 
+        </div>
+      )}
+
+
+      {/* ── BILLS TRACKER ── */}
+      {view==="bills"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <Card>
+            <SL icon="ti-file-invoice" text="Monthly Bills" color={C.purple}/>
+            <div style={{fontSize:12,color:C.textMid,marginBottom:14}}>Track fixed monthly bills. Mark them paid each month — resets are manual.</div>
+            {/* Add bill form */}
+            <div style={{background:C.gray1,borderRadius:12,padding:"12px",marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:500,color:C.textMid,marginBottom:10}}>Add a bill</div>
+              <input placeholder="Name (e.g. Netflix, Rent)" value={billForm.name||""} onChange={e=>setBillForm(f=>({...f,name:e.target.value}))} style={{...inp,marginBottom:8}}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                <input type="text" inputMode="decimal" placeholder="Amount" value={billForm.amount||""} onChange={e=>setBillForm(f=>({...f,amount:e.target.value}))} style={{...inp,marginBottom:0}}/>
+                <select value={billForm.currency||"AED"} onChange={e=>setBillForm(f=>({...f,currency:e.target.value}))} style={{...inp,marginBottom:0}}>
+                  <option>AED</option><option>PHP</option>
+                </select>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <div>
+                  <label style={{...lbl,marginBottom:3}}>Due day of month</label>
+                  <input type="number" min="1" max="31" value={billForm.dueDay||"1"} onChange={e=>setBillForm(f=>({...f,dueDay:e.target.value}))} style={{...inp,marginBottom:0}}/>
+                </div>
+                <div>
+                  <label style={{...lbl,marginBottom:3}}>Category</label>
+                  <select value={billForm.category||"Bills"} onChange={e=>setBillForm(f=>({...f,category:e.target.value}))} style={{...inp,marginBottom:0}}>
+                    {CATEGORIES.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button onClick={()=>{
+                if(!billForm.name||!billForm.amount)return;
+                const nb={id:"b_"+Date.now(),name:billForm.name,amount:Number(billForm.amount),currency:billForm.currency||"AED",due_day:Number(billForm.dueDay)||1,category:billForm.category||"Bills",paid_months:[]};
+                try{const res=await db.post("bills",nb);if(Array.isArray(res)&&res[0]){saveBills([...bills,res[0]]);}else{saveBills([...bills,nb]);}}catch(e){saveBills([...bills,nb]);showToast("Saved locally — sync issue",C.amber);}
+                setBillForm({name:"",amount:"",dueDay:"1",category:"Bills",currency:"AED"});
+                showToast("Bill added!");
+              }} style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:C.purple,color:C.white,fontWeight:500,fontSize:14}}>
+                <i className="ti ti-plus"/> Add Bill
+              </button>
+            </div>
+            {/* Bills list */}
+            {bills.length===0?(
+              <div style={{textAlign:"center",padding:"2rem",color:C.textLight,fontSize:13}}>
+                <i className="ti ti-file-invoice" style={{fontSize:36,display:"block",marginBottom:8,color:C.gray3}}/>
+                No bills yet — add your first one above
+              </div>
+            ):(()=>{
+              const curMonthKey=`${new Date().getFullYear()}-${String(selMonth).padStart(2,"0")}`;
+              const totalDue=bills.reduce((s,b)=>s+b.amount,0);
+              const paidBills=bills.filter(b=>(b.paid_months||[]).includes(curMonthKey));
+              const totalPaid=paidBills.reduce((s,b)=>s+b.amount,0);
+              const pct=totalDue>0?Math.round(totalPaid/totalDue*100):0;
+              return(<>
+                {/* Summary bar */}
+                <div style={{background:C.gray1,borderRadius:12,padding:"12px 14px",marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <span style={{fontSize:12,color:C.textMid,fontWeight:500}}>{MONTHS[selMonth-1]} · {paidBills.length}/{bills.length} paid</span>
+                    <span style={{fontSize:13,fontWeight:600,color:pct===100?C.teal:C.amber}}>{pct}%</span>
+                  </div>
+                  <PB pct={pct}/>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:6,fontSize:11,color:C.textLight}}>
+                    <span>Paid: {fmtN(totalPaid,"AED")}</span>
+                    <span>Remaining: {fmtN(totalDue-totalPaid,"AED")}</span>
+                  </div>
+                </div>
+                {/* Individual bills */}
+                {bills.map(bill=>{
+                  const isPaid=(bill.paid_months||[]).includes(curMonthKey);
+                  const cm=CAT_META[bill.category]||CAT_META.Other;
+                  const togglePaid=async()=>{
+                    const pm=bill.paid_months||[];
+                    const newPm=isPaid?pm.filter(m=>m!==curMonthKey):[...pm,curMonthKey];
+                    const updated=bills.map(b=>b.id===bill.id?{...b,paid_months:newPm}:b);
+                    saveBills(updated);
+                    try{await db.patch("bills",`?id=eq.${bill.id}`,{paid_months:newPm});}catch(e){}
+                    if(!isPaid)showToast(`✅ ${bill.name} marked paid`,C.teal);
+                  };
+                  return(
+                    <div key={bill.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.gray2}`,opacity:isPaid?0.6:1}}>
+                      <button onClick={togglePaid} style={{width:28,height:28,borderRadius:8,border:`2px solid ${isPaid?C.teal:C.gray3}`,background:isPaid?C.teal:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>
+                        {isPaid&&<i className="ti ti-check" style={{fontSize:13,color:C.white}}/>}
+                      </button>
+                      <div style={{width:32,height:32,borderRadius:9,background:cm.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1.5px solid ${cm.border}`}}>
+                        <i className={`ti ${cm.icon}`} style={{fontSize:13,color:cm.text}}/>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:500,color:C.text,textDecoration:isPaid?"line-through":"none"}}>{bill.name}</div>
+                        <div style={{fontSize:10,color:C.textLight,marginTop:1}}>Due day {bill.due_day} · {bill.category}</div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:13,fontWeight:600,color:isPaid?C.teal:C.text}}>{hideValues?"••••":fmtN(bill.amount,bill.currency)}</div>
+                        <button onClick={async()=>{saveBills(bills.filter(b=>b.id!==bill.id));try{await db.del("bills",`?id=eq.${bill.id}`);}catch(e){}}} style={{background:"none",border:"none",color:C.gray3,fontSize:12,padding:"2px 0",cursor:"pointer"}}>
+                          <i className="ti ti-trash"/>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>);
+            })()}
+          </Card>
+        </div>
+      )}
+
+      {/* ── SAVINGS GOALS ── */}
+      {view==="goals"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <Card>
+            <SL icon="ti-target" text="Savings Goals" color={C.teal}/>
+            <div style={{fontSize:12,color:C.textMid,marginBottom:14}}>Set targets, track progress. Update "saved so far" anytime.</div>
+            {/* Add goal form */}
+            <div style={{background:C.gray1,borderRadius:12,padding:"12px",marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:500,color:C.textMid,marginBottom:10}}>Add a goal</div>
+              <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:8,marginBottom:8,alignItems:"center"}}>
+                <select value={goalForm.emoji||"🎯"} onChange={e=>setGoalForm(f=>({...f,emoji:e.target.value}))} style={{...inp,marginBottom:0,width:60,fontSize:18,textAlign:"center",padding:"6px 4px"}}>
+                  {["🎯","🏠","✈️","💍","🚗","📱","🎓","👶","💰","🏖️","🏥","🎁"].map(e=><option key={e} value={e}>{e}</option>)}
+                </select>
+                <input placeholder="Goal name (e.g. Emergency fund)" value={goalForm.name||""} onChange={e=>setGoalForm(f=>({...f,name:e.target.value}))} style={{...inp,marginBottom:0}}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+                <input type="text" inputMode="decimal" placeholder="Target" value={goalForm.target||""} onChange={e=>setGoalForm(f=>({...f,target:e.target.value}))} style={{...inp,marginBottom:0}}/>
+                <input type="text" inputMode="decimal" placeholder="Saved so far" value={goalForm.saved||""} onChange={e=>setGoalForm(f=>({...f,saved:e.target.value}))} style={{...inp,marginBottom:0}}/>
+                <select value={goalForm.currency||"AED"} onChange={e=>setGoalForm(f=>({...f,currency:e.target.value}))} style={{...inp,marginBottom:0}}>
+                  <option>AED</option><option>PHP</option>
+                </select>
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={{...lbl,marginBottom:3}}>Target date (optional)</label>
+                <input type="date" value={goalForm.deadline||""} onChange={e=>setGoalForm(f=>({...f,deadline:e.target.value}))} style={{...inp,marginBottom:0}}/>
+              </div>
+              <button onClick={()=>{
+                if(!goalForm.name||!goalForm.target)return;
+                const ng={id:"g_"+Date.now(),name:goalForm.name,target:Number(goalForm.target),saved:Number(goalForm.saved||0),currency:goalForm.currency||"AED",emoji:goalForm.emoji||"🎯",deadline:goalForm.deadline||""};
+                try{const res=await db.post("savings_goals",ng);if(Array.isArray(res)&&res[0]){saveGoals([...goals,res[0]]);}else{saveGoals([...goals,ng]);}}catch(e){saveGoals([...goals,ng]);showToast("Saved locally — sync issue",C.amber);}
+                setGoalForm({name:"",target:"",saved:"",currency:"AED",emoji:"🎯",deadline:""});
+                showToast("Goal added!");
+              }} style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:C.teal,color:C.white,fontWeight:500,fontSize:14}}>
+                <i className="ti ti-plus"/> Add Goal
+              </button>
+            </div>
+            {/* Goals list */}
+            {goals.length===0?(
+              <div style={{textAlign:"center",padding:"2rem",color:C.textLight,fontSize:13}}>
+                <i className="ti ti-target" style={{fontSize:36,display:"block",marginBottom:8,color:C.gray3}}/>
+                No goals yet — add your first one above
+              </div>
+            ):goals.map(goal=>{
+              const pct=goal.target>0?Math.min(100,Math.round(goal.saved/goal.target*100)):0;
+              const remaining=Math.max(0,goal.target-goal.saved);
+              const done=goal.saved>=goal.target;
+              const daysLeft=goal.deadline?Math.ceil((new Date(goal.deadline)-new Date())/(1000*60*60*24)):null;
+              return(
+                <div key={goal.id} style={{background:done?"rgba(29,158,117,0.07)":C.gray1,borderRadius:14,padding:"14px",marginBottom:12,border:`1.5px solid ${done?C.teal:C.gray3}`}}>
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <span style={{fontSize:28}}>{goal.emoji}</span>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:500,color:C.text}}>{goal.name}</div>
+                        {goal.deadline&&<div style={{fontSize:10,color:daysLeft&&daysLeft<30?C.amber:C.textLight,marginTop:2}}>
+                          {done?"✅ Completed":(daysLeft!==null?(daysLeft>0?`${daysLeft} days left`:"Overdue"):"No deadline")}
+                        </div>}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      {done&&<span style={{fontSize:10,background:C.tealLight,color:C.tealText,padding:"2px 8px",borderRadius:99,fontWeight:600}}>DONE 🎉</span>}
+                      <button onClick={async()=>{saveGoals(goals.filter(g=>g.id!==goal.id));try{await db.del("savings_goals",`?id=eq.${goal.id}`);}catch(e){}}} style={{background:"none",border:"none",color:C.gray3,fontSize:14,cursor:"pointer",padding:0}}>
+                        <i className="ti ti-trash"/>
+                      </button>
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{height:10,background:C.gray2,borderRadius:99,overflow:"hidden",marginBottom:6,border:`1px solid ${C.gray3}`}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:done?C.teal:pct>=75?C.teal:pct>=40?C.amber:C.coral,borderRadius:99,transition:"width 0.4s ease"}}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.textMid,marginBottom:10}}>
+                    <span style={{fontWeight:600,color:C.text}}>{hideValues?"••••":fmtN(goal.saved,goal.currency)} saved</span>
+                    <span>{pct}% of {hideValues?"••••":fmtN(goal.target,goal.currency)}</span>
+                  </div>
+                  {!done&&<div style={{fontSize:11,color:C.textLight,marginBottom:10}}>Still need: <strong style={{color:C.text}}>{hideValues?"••••":fmtN(remaining,goal.currency)}</strong></div>}
+                  {/* Update saved amount */}
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <input type="text" inputMode="decimal" placeholder="Update saved amount" defaultValue={goal.saved} key={goal.id+"_input"}
+                      onBlur={async e=>{
+                        const v=Number(e.target.value);
+                        if(!isNaN(v)&&v!==goal.saved){
+                          saveGoals(goals.map(g=>g.id===goal.id?{...g,saved:v}:g));
+                          try{await db.patch("savings_goals",`?id=eq.${goal.id}`,{saved:v});}catch(e){}
+                          showToast("Goal updated!",C.teal);
+                        }
+                      }}
+                      style={{...inp,marginBottom:0,flex:1,fontSize:13}}/>
+                    <span style={{fontSize:11,color:C.textMid,whiteSpace:"nowrap"}}>{goal.currency}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
         </div>
       )}
 
