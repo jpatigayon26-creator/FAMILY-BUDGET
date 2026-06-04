@@ -1799,7 +1799,7 @@ function App(){
                   </select>
                 </div>
               </div>
-              <button onClick={()=>{
+              <button onClick={async()=>{
                 if(!billForm.name||!billForm.amount)return;
                 const nb={id:"b_"+Date.now(),name:billForm.name,amount:Number(billForm.amount),currency:billForm.currency||"AED",due_day:Number(billForm.dueDay)||1,category:billForm.category||"Bills",paid_months:[]};
                 try{const res=await db.post("bills",nb);if(Array.isArray(res)&&res[0]){saveBills([...bills,res[0]]);}else{saveBills([...bills,nb]);}}catch(e){saveBills([...bills,nb]);showToast("Saved locally — sync issue",C.amber);}
@@ -1899,7 +1899,7 @@ function App(){
                 <label style={{...lbl,marginBottom:3}}>Target date (optional)</label>
                 <input type="date" value={goalForm.deadline||""} onChange={e=>setGoalForm(f=>({...f,deadline:e.target.value}))} style={{...inp,marginBottom:0}}/>
               </div>
-              <button onClick={()=>{
+              <button onClick={async()=>{
                 if(!goalForm.name||!goalForm.target)return;
                 const ng={id:"g_"+Date.now(),name:goalForm.name,target:Number(goalForm.target),saved:Number(goalForm.saved||0),currency:goalForm.currency||"AED",emoji:goalForm.emoji||"🎯",deadline:goalForm.deadline||""};
                 try{const res=await db.post("savings_goals",ng);if(Array.isArray(res)&&res[0]){saveGoals([...goals,res[0]]);}else{saveGoals([...goals,ng]);}}catch(e){saveGoals([...goals,ng]);showToast("Saved locally — sync issue",C.amber);}
