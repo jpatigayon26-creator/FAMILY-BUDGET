@@ -917,8 +917,8 @@ function App(){
                 <i className={`ti ${icon}`} aria-hidden="true" style={{fontSize:14}}/><span className="hide-mobile">{label}</span>
               </button>
             ))}
-            <select value={selYear} onChange={e=>setSelYear(Number(e.target.value))} style={{padding:"6px 8px",borderRadius:8,background:"rgba(0,0,0,0.3)",border:"1px solid rgba(255,255,255,0.12)",color:"#E0E8FF",fontSize:12,fontWeight:500,cursor:"pointer"}}>
-              {[2024,2025,2026,2027,2028,2029,2030].map(y=><option key={y} value={y}>{y}</option>)}
+            <select value={selYear} onChange={e=>setSelYear(Number(e.target.value))} style={{padding:"7px 6px",borderRadius:8,background:"rgba(0,0,0,0.2)",border:"none",color:"#9AAAC8",fontSize:12,fontWeight:500,cursor:"pointer",width:54,appearance:"none",WebkitAppearance:"none",textAlign:"center"}}>
+              {[2024,2025,2026,2027,2028,2029,2030].map(y=><option key={y} value={y} style={{background:"#1B2A4A"}}>{y}</option>)}
             </select>
             <button onClick={loadAll} style={{padding:"7px 9px",borderRadius:8,background:"transparent",border:"none",color:"#9AAAC8",fontSize:16}} title="Refresh">
               <i className="ti ti-refresh" aria-hidden="true"/>
