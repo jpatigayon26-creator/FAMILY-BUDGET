@@ -464,7 +464,7 @@ function App(){
   const msKey=`${selYear}-${selMonth}`;
   const ms=monthSettings[msKey]||{savings:0,bdo_opening:0,budget_limit:0,withdraw:0};
   const isMonthLocked=lockedMonths.includes(msKey);
-  const totalSavingsAED=Object.entries(monthSettings).filter(([k])=>k.startsWith(selYear+"-")).reduce((s,[,m])=>s+Number(m.savings||0),0);
+  const totalSavingsAED=Object.entries(monthSettings).filter(([k])=>k.startsWith(String(selYear)+"-")).reduce((s,[,m])=>s+Number(m.savings||0),0);
 
   // Balance = Income - Card expenses - Withdraw
   // Cash On Hand expenses only affect the cash pool, NOT the balance (withdraw covers them)
@@ -481,7 +481,7 @@ function App(){
   // March (index 2) is the base — uses manually set bdo_opening
   // Every month after that ignores bdo_opening and uses previous month's closing
   const getBDOClosing=(monthIdx)=>{
-    const msi=monthSettings[monthIdx]||{};
+    const msi=monthSettings[`${selYear}-${monthIdx}`]||{};
     // March=3 is the first month with BDO data — use manual bdo_opening
     const opening=monthIdx<=3
       ? Number(msi.bdo_opening||0)
@@ -539,13 +539,14 @@ function App(){
   // Master = all visible items across current expense tab + income + BDO
   const allMasterSel=(filteredExp.length===0||allExpSel)&&(monthInc.length===0||allIncSel)&&(monthBDO.length===0||allBDOSel)&&(filteredExp.length+monthInc.length+monthBDO.length>0);
 
-  // Dashboard yearly rows
+  // Dashboard yearly rows — filtered by selYear, uses correct msKey
   const yearRows=MONTHS.map((m,i)=>{
-    const mi=i+1; // 1-based month index matching DB
-    const ex=expenses.filter(e=>e.month===mi&&(e.pay_type==="Card"||e.pay_type==="Cash On Hand"));
-    const exCard=expenses.filter(e=>e.month===mi&&e.pay_type==="Card");
-    const ic=income.filter(e=>e.month===mi);
-    const msi=monthSettings[mi]||{};
+    const mi=i+1;
+    const yKey=`${selYear}-${mi}`;
+    const ex=expenses.filter(e=>e.month===mi&&(e.year||2026)===selYear&&(e.pay_type==="Card"||e.pay_type==="Cash On Hand"));
+    const exCard=expenses.filter(e=>e.month===mi&&(e.year||2026)===selYear&&e.pay_type==="Card");
+    const ic=income.filter(e=>e.month===mi&&(e.year||2026)===selYear);
+    const msi=monthSettings[yKey]||{};
     const inc=ic.reduce((s,x)=>s+Number(x.amount||0),0);
     const exp=ex.reduce((s,x)=>s+Number(x.amount||0),0);
     const expCard=exCard.reduce((s,x)=>s+Number(x.amount||0),0);
@@ -721,7 +722,7 @@ function App(){
     const AED_FMT='#,##0.00 "AED"';
     monthsToExport.forEach(m=>{
       const mName=MONTHS[m-1]||"Month"+m;
-      const mms=monthSettings[m]||{savings:0,bdo_opening:0,budget_limit:0,withdraw:0};
+      const mms=monthSettings[`${selYear}-${m}`]||{savings:0,bdo_opening:0,budget_limit:0,withdraw:0};
       const mInc=income.filter(e=>e.month===m&&(e.year||2026)===selYear).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
       const mCard=expenses.filter(e=>e.month===m&&(e.year||2026)===selYear&&e.pay_type==="Card").sort((a,b)=>(a.date||"").localeCompare(b.date||""));
       const mCash=expenses.filter(e=>e.month===m&&(e.year||2026)===selYear&&e.pay_type==="Cash On Hand").sort((a,b)=>(a.date||"").localeCompare(b.date||""));
@@ -1175,8 +1176,8 @@ function App(){
           {totalCardExp>0&&(()=>{
             // Previous month data
             const prevMonth=selMonth-1;
-            const prevCardExp=prevMonth>=1?expenses.filter(e=>e.month===prevMonth&&e.pay_type==="Card").reduce((s,x)=>s+Number(x.amount||0),0):null;
-            const prevCatTotals=prevMonth>=1?CATEGORIES.map(c=>({label:c,value:expenses.filter(e=>e.month===prevMonth&&e.category===c&&(e.pay_type==="Card"||e.pay_type==="Cash On Hand")).reduce((s,x)=>s+Number(x.amount||0),0)})):null;
+            const prevCardExp=prevMonth>=1?expenses.filter(e=>e.month===prevMonth&&(e.year||2026)===selYear&&e.pay_type==="Card").reduce((s,x)=>s+Number(x.amount||0),0):null;
+            const prevCatTotals=prevMonth>=1?CATEGORIES.map(c=>({label:c,value:expenses.filter(e=>e.month===prevMonth&&(e.year||2026)===selYear&&e.category===c&&(e.pay_type==="Card"||e.pay_type==="Cash On Hand")).reduce((s,x)=>s+Number(x.amount||0),0)})):null;
 
             // Top category this month
             const topCat=[...catTotals].filter(c=>c.value>0).sort((a,b)=>b.value-a.value)[0];
@@ -1365,7 +1366,7 @@ function App(){
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
                 {recurringTemplates.map(t=>{
-                  const alreadyThisMonth=(t.type==="expense"?expenses:income).some(e=>e.month===selMonth&&e.description===t.description&&Math.abs(Number(e.amount)-Number(t.amount))<0.01);
+                  const alreadyThisMonth=(t.type==="expense"?expenses:income).some(e=>e.month===selMonth&&(e.year||2026)===selYear&&e.description===t.description&&Math.abs(Number(e.amount)-Number(t.amount))<0.01);
                   const cm=t.type==="expense"?(CAT_META[t.category]||CAT_META.Other):null;
                   return(
                     <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:alreadyThisMonth?C.tealLight:C.gray1,borderRadius:10,border:`1.5px solid ${alreadyThisMonth?"#A7D7C5":C.gray3}`}}>
