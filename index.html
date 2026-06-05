@@ -263,6 +263,11 @@ function App(){
   const[expTab,setExpTab]=useState("Card");
   const[toast,setToast]=useState(null);
   const[loading,setLoading]=useState(true);
+  const[pinUnlocked,setPinUnlocked]=useState(false);
+  const[pinEntry,setPinEntry]=useState("");
+  const[pinError,setPinError]=useState(false);
+  const[pinShake,setPinShake]=useState(false);
+  const[storedPin,setStoredPin]=useState(null);
   const[syncing,setSyncing]=useState(false);
   const[expenses,setExpenses]=useState([]);
   const[income,setIncome]=useState([]);
@@ -439,6 +444,19 @@ function App(){
       if(Array.isArray(bls))setBills(bls.map(b=>({...b,paid_months:b.paid_months||[]})));
       if(Array.isArray(gls))setGoals(gls.map(g=>({...g,target:Number(g.target||0),saved:Number(g.saved||0)})));
     }catch(e){showToast("Connection error — check Supabase",C.red);}
+    // fetch PIN
+    try{
+      const pinRes=await db.get("app_config","?key=eq.pin");
+      if(Array.isArray(pinRes)&&pinRes.length>0){
+        setStoredPin(pinRes[0].value);
+      } else {
+        setStoredPin(null); // no pin set — bypass lock
+        setPinUnlocked(true);
+      }
+    }catch(e){
+      setStoredPin(null);
+      setPinUnlocked(true);
+    }
     setLoading(false);
   },[]);
 
@@ -860,6 +878,64 @@ function App(){
 
   // UI helpers
   const expRowStyle={display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:C.gray1,borderRadius:12,border:`1.5px solid ${C.gray3}`};
+
+
+  // PIN LOCK SCREEN
+  const handlePinKey=(key)=>{
+    if(key==="del"){
+      setPinEntry(p=>p.slice(0,-1));
+      setPinError(false);
+      return;
+    }
+    const next=pinEntry+key;
+    setPinEntry(next);
+    if(next.length===6){
+      if(next===storedPin){
+        setPinUnlocked(true);
+        setPinEntry("");
+        setPinError(false);
+      } else {
+        setPinShake(true);
+        setPinError(true);
+        setTimeout(()=>{setPinEntry("");setPinShake(false);},600);
+      }
+    }
+  };
+
+  if(!loading&&storedPin&&!pinUnlocked)return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"linear-gradient(160deg,#0E1D38 0%,#1B2A4A 100%)",userSelect:"none"}}>
+      <style>{`
+        @keyframes pinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+        .pin-shake{animation:pinShake 0.5s ease;}
+        .pin-key:active{transform:scale(0.92);opacity:0.8;}
+      `}</style>
+      <div style={{marginBottom:32,textAlign:"center"}}>
+        <div style={{width:56,height:56,borderRadius:18,background:"#F97066",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px"}}>
+          <i className="ti ti-home-heart" style={{fontSize:30,color:"#fff"}}/>
+        </div>
+        <div style={{color:"#fff",fontWeight:600,fontSize:20,marginBottom:4}}>Our Family Budget</div>
+        <div style={{color:"#9AAAC8",fontSize:13}}>Enter your PIN to continue</div>
+      </div>
+
+      {/* Dots */}
+      <div className={pinShake?"pin-shake":""} style={{display:"flex",gap:16,marginBottom:40}}>
+        {[0,1,2,3,4,5].map(i=>(
+          <div key={i} style={{width:16,height:16,borderRadius:"50%",border:"2px solid",borderColor:pinError?"#F97066":i<pinEntry.length?"#fff":"rgba(255,255,255,0.25)",background:i<pinEntry.length?(pinError?"#F97066":"#fff"):"transparent",transition:"all 0.15s"}}/>
+        ))}
+      </div>
+      {pinError&&<div style={{color:"#F97066",fontSize:12,marginTop:-28,marginBottom:20,fontWeight:500}}>Incorrect PIN</div>}
+
+      {/* Keypad */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,width:260}}>
+        {["1","2","3","4","5","6","7","8","9","","0","del"].map((k,i)=>(
+          k===""?<div key={i}/>:
+          <button key={i} className="pin-key" onClick={()=>handlePinKey(k)} style={{height:72,borderRadius:16,border:"1.5px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:k==="del"?20:26,fontWeight:k==="del"?400:500,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.1s,opacity 0.1s",backdropFilter:"blur(4px)"}}>
+            {k==="del"?<i className="ti ti-backspace"/>:k}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   if(loading)return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:14,background:"linear-gradient(160deg,#0E1D38 0%,#1B2A4A 100%)"}}>
