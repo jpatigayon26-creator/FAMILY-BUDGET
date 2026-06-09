@@ -390,21 +390,30 @@ function App(){
 
   const showToast=(msg,color=C.teal)=>{setToast({msg,color});setTimeout(()=>setToast(null),2500);};
 
-  // Lock body scroll when modal open — prevents scroll-to-top on input focus
+  // Lock body scroll when modal open — preserve scroll position for iOS Safari
   useEffect(()=>{
     if(modal){
+      const scrollY=window.scrollY;
       document.body.style.overflow='hidden';
       document.body.style.position='fixed';
       document.body.style.width='100%';
+      document.body.style.top=`-${scrollY}px`;
+      document.body.dataset.scrollY=String(scrollY);
     } else {
+      const scrollY=Number(document.body.dataset.scrollY||0);
       document.body.style.overflow='';
       document.body.style.position='';
       document.body.style.width='';
+      document.body.style.top='';
+      window.scrollTo(0,scrollY);
     }
     return()=>{
+      const scrollY=Number(document.body.dataset.scrollY||0);
       document.body.style.overflow='';
       document.body.style.position='';
       document.body.style.width='';
+      document.body.style.top='';
+      window.scrollTo(0,scrollY);
     };
   },[modal]);
 
