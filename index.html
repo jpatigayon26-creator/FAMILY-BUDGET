@@ -229,7 +229,7 @@ function SwipeRow({onDelete,disabled,children,style={}}){
 
 function App(){
   const[darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("dark_mode")==="1";}catch{return false;}});
-  const toggleDark=()=>{const n=!darkMode;setDarkMode(n);try{localStorage.setItem("dark_mode",n?"1":"0");}catch{}};
+  const toggleDark=()=>{const n=!darkMode;setDarkMode(n);saveConfig("dark_mode",n?"1":"0");};
   C=darkMode?DARK_C:LIGHT_C; // reassign module-level C so top-level components (Card, SL, MC, PieChart, PB) use the active palette
   const inp={width:"100%",boxSizing:"border-box",marginBottom:10,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"9px 12px",fontSize:14,background:C.white,color:C.text};
   const lbl={fontSize:12,color:C.textMid,display:"block",marginBottom:4,fontWeight:500};
@@ -309,18 +309,18 @@ function App(){
     const locked=lockedMonths.includes(key);
     if(locked){setUnlockPrompt(key);return;}
     const updated=[...lockedMonths,key];
-    try{localStorage.setItem("locked_months",JSON.stringify(updated));}catch{}
     setLockedMonths(updated);
+    saveConfig("locked_months",updated);
   };
   const confirmUnlock=()=>{
     if(!unlockPrompt)return;
     const updated=lockedMonths.filter(m=>m!==unlockPrompt);
-    try{localStorage.setItem("locked_months",JSON.stringify(updated));}catch{}
     setLockedMonths(updated);
+    saveConfig("locked_months",updated);
     setUnlockPrompt(null);
   };
-  const saveRecurring=(templates)=>{try{localStorage.setItem("recurring_templates",JSON.stringify(templates));}catch{}setRecurringTemplates(templates);};
-  const saveCatBudgets=(budgets)=>{try{localStorage.setItem("cat_budgets",JSON.stringify(budgets));}catch{}setCatBudgets(budgets);};
+  const saveRecurring=(templates)=>{setRecurringTemplates(templates);saveConfig("recurring_templates",templates);};
+  const saveCatBudgets=(budgets)=>{setCatBudgets(budgets);saveConfig("cat_budgets",budgets);};
   const saveBills=(list)=>{setBills(list);};
   const saveGoals=(list)=>{setGoals(list);};
   const saveNote=async(note)=>{
@@ -329,8 +329,8 @@ function App(){
     await updateMS({notes:note});
   };
   const saveGrocery=(list)=>{
-    try{localStorage.setItem("grocery_list",JSON.stringify(list));}catch{}
     setGroceryList(list);
+    saveConfig("grocery_list",list);
   };
   const[queue,setQueue]=useState(()=>{
     try{const q=localStorage.getItem("budget_queue");return q?JSON.parse(q):[];}
@@ -342,6 +342,20 @@ function App(){
   const saveQueue=(q)=>{
     try{localStorage.setItem("budget_queue",JSON.stringify(q));}catch{}
     setQueue(q);
+  };
+
+  // Save a config value to Supabase app_config (upsert by key)
+  const saveConfig=async(key,value)=>{
+    const str=JSON.stringify(value);
+    try{localStorage.setItem(key,str);}catch{}
+    try{
+      const existing=await db.get("app_config",`?key=eq.${key}`);
+      if(Array.isArray(existing)&&existing.length>0){
+        await db.patch("app_config",`?key=eq.${key}`,{value:str});
+      } else {
+        await db.post("app_config",{key,value:str});
+      }
+    }catch(e){/* silently fail — localStorage is the fallback */}
   };
 
   // Sync offline queue to Supabase
@@ -472,6 +486,23 @@ function App(){
       setStoredPin(null);
       setPinUnlocked(true);
     }
+    // Load synced config from Supabase (overwrites localStorage fallback)
+    try{
+      const cfgKeys=["dark_mode","locked_months","recurring_templates","cat_budgets","grocery_list"];
+      const cfgRes=await db.get("app_config",`?key=in.(${cfgKeys.join(",")})`);
+      if(Array.isArray(cfgRes)){
+        cfgRes.forEach(row=>{
+          try{
+            const val=JSON.parse(row.value);
+            if(row.key==="dark_mode"){setDarkMode(val==="1");}
+            else if(row.key==="locked_months"){setLockedMonths(val);}
+            else if(row.key==="recurring_templates"){setRecurringTemplates(val);}
+            else if(row.key==="cat_budgets"){setCatBudgets(val);}
+            else if(row.key==="grocery_list"){setGroceryList(val);}
+          }catch{}
+        });
+      }
+    }catch{}
     setLoading(false);
   },[]);
 
