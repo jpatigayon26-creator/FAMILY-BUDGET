@@ -234,6 +234,7 @@ function App(){
   const inp={width:"100%",boxSizing:"border-box",marginBottom:10,borderRadius:10,border:`1.5px solid ${C.gray3}`,padding:"9px 12px",fontSize:14,background:C.white,color:C.text};
   const lbl={fontSize:12,color:C.textMid,display:"block",marginBottom:4,fontWeight:500};
   const[view,setView]=useState("dashboard");
+  const[monthlyTab,setMonthlyTab]=useState("tx");
   const[hideValues,setHideValues]=useState(false);
   const toggleHide=()=>setHideValues(v=>!v);
   const fmt=(n,cur)=>hideValues?"••••":fmtN(n,cur);
@@ -299,7 +300,6 @@ function App(){
   const[editForm,setEditForm]=useState({});
   const[recurringTemplates,setRecurringTemplates]=useState(()=>{try{const r=localStorage.getItem("recurring_templates");return r?JSON.parse(r):[];}catch{return[];}});
   const[catBudgets,setCatBudgets]=useState(()=>{try{const b=localStorage.getItem("cat_budgets");return b?JSON.parse(b):{};}catch{return{};}});
-  const[showCatBudgets,setShowCatBudgets]=useState(false);
   const[bills,setBills]=useState([]);
   const[billForm,setBillForm]=useState({name:"",amount:"",dueDay:"1",category:"Bills",currency:"AED"});
   const[goals,setGoals]=useState([]);
@@ -1264,7 +1264,17 @@ function App(){
           )}
 
 
+          {/* Monthly sub-tabs */}
+          <div style={{display:"flex",gap:4,background:C.gray2,borderRadius:12,padding:4}}>
+            {[["tx","ti-list","Transactions"],["insights","ti-chart-pie","Insights"],["budget","ti-adjustments","Budget"]].map(([k,icon,label])=>(
+              <button key={k} onClick={()=>{setMonthlyTab(k);if(selectMode)clearSelection();}} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:5,padding:"9px 2px",borderRadius:9,border:"none",fontSize:12,fontWeight:monthlyTab===k?500:400,background:monthlyTab===k?C.coral:"transparent",color:monthlyTab===k?C.white:C.textMid}}>
+                <i className={`ti ${icon}`} aria-hidden="true" style={{fontSize:14}}/>{label}
+              </button>
+            ))}
+          </div>
+
           {/* Monthly Notes */}
+          {monthlyTab==="budget"&&(
           <div style={{background:C.white,border:`1.5px solid ${C.gray2}`,borderRadius:16,padding:"12px 14px",boxShadow:`0 2px 8px rgba(27,42,74,0.06)`}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
               <i className="ti ti-notes" style={{fontSize:15,color:C.navyLight}}/>
@@ -1279,6 +1289,7 @@ function App(){
               style={{width:"100%",minHeight:56,resize:"none",border:"none",outline:"none",fontSize:13,color:C.text,background:"transparent",lineHeight:1.6,opacity:isMonthLocked?0.5:1,boxSizing:"border-box",fontFamily:"inherit"}}
             />
           </div>
+          )}
 
           {/* Overspend alert */}
           {overspent&&(
@@ -1292,15 +1303,17 @@ function App(){
           )}
 
           {/* Metric cards */}
+          {monthlyTab==="tx"&&(
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
             <MC label="Total income" value={fmt(totalInc,"AED")} icon="ti-cash" bg={C.tealLight} ic={C.teal} vc={C.tealDark}/>
             <MC label="Card expenses" value={fmt(totalCardExp,"AED")} icon="ti-credit-card" bg={C.coralLight} ic={C.coral} vc={C.coralDark} sub="Deducted from balance"/>
             <MC label="Withdraw / Cash" value={fmt(withdraw,"AED")} icon="ti-cash-banknote" bg={cashOverspent?C.redLight:C.amberLight} ic={cashOverspent?C.red:C.amber} vc={cashOverspent?C.red:"#92400E"} sub={withdraw>0?fmtN(cashRemaining,"AED")+" remaining cash":"Set withdraw in settings"}/>
             <MC label="Balance" value={fmt(balance,"AED")} icon="ti-scale" bg={balance>=0?"#EEF0FB":C.redLight} ic={balance>=0?C.navyLight:C.red} vc={balance>=0?C.navy:C.red}/>
           </div>
+          )}
 
           {/* ── Spending Insights ── */}
-          {totalCardExp>0&&(()=>{
+          {monthlyTab==="insights"&&totalCardExp>0&&(()=>{
             // Previous month data
             const prevMonth=selMonth-1;
             const prevCardExp=prevMonth>=1?expenses.filter(e=>e.month===prevMonth&&(e.year||selYear)===selYear&&e.pay_type==="Card").reduce((s,x)=>s+Number(x.amount||0),0):null;
@@ -1406,6 +1419,7 @@ function App(){
           })()}
 
           {/* Savings + budget limit inputs */}
+          {monthlyTab==="budget"&&(
           <Card>
             <SL icon="ti-adjustments" text="Month settings"/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}} className="grid-2">
@@ -1436,9 +1450,10 @@ function App(){
               </div>
             )}
           </Card>
+          )}
 
           {/* Budget used bar (always visible) */}
-          {!ms.budget_limit&&(
+          {monthlyTab==="budget"&&!ms.budget_limit&&(
             <Card style={{padding:"1rem 1.25rem"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
                 <span style={{color:C.textMid,fontWeight:500}}>Income used (expenses + withdraw)</span>
@@ -1451,15 +1466,19 @@ function App(){
             </Card>
           )}
 
-          {/* Pie chart + Category budgets */}
+          {/* Pie chart -> Insights tab */}
+          {monthlyTab==="insights"&&(
           <Card>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <SL icon="ti-chart-donut" text="AED spending by category"/>
-              <button onClick={()=>setShowCatBudgets(v=>!v)} style={{fontSize:11,color:C.navyLight,background:"none",border:"none",padding:0,cursor:"pointer"}}>{showCatBudgets?"Hide budgets":"Set category budgets"}</button>
-            </div>
+            <SL icon="ti-chart-donut" text="AED spending by category"/>
             <PieChart data={catTotals}/>
-            {showCatBudgets&&(
-              <div style={{marginTop:14,borderTop:`1.5px solid ${C.gray3}`,paddingTop:12}}>
+          </Card>
+          )}
+
+          {/* Category budgets -> Budget tab */}
+          {monthlyTab==="budget"&&(
+          <Card>
+            <SL icon="ti-category" text="Category budgets"/>
+              <div>
                 <div style={{fontSize:11,fontWeight:500,color:C.textLight,marginBottom:10}}>MONTHLY BUDGET PER CATEGORY</div>
                 {CATEGORIES.map(cat=>{
                   const cm=CAT_META[cat]||CAT_META.Other;
@@ -1481,11 +1500,11 @@ function App(){
                   );
                 })}
               </div>
-            )}
           </Card>
+          )}
 
           {/* Recurring entries */}
-          {recurringTemplates.length>0&&!isMonthLocked&&(
+          {monthlyTab==="budget"&&recurringTemplates.length>0&&!isMonthLocked&&(
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
                 <SL icon="ti-repeat" text="Recurring entries"/>
@@ -1525,13 +1544,17 @@ function App(){
           )}
 
           {/* Search bar */}
+          {monthlyTab==="tx"&&(
           <div style={{display:"flex",alignItems:"center",gap:8,background:C.white,border:`1.5px solid ${C.gray3}`,borderRadius:12,padding:"8px 12px"}}>
             <i className="ti ti-search" style={{color:C.textLight,fontSize:15,flexShrink:0}}/>
             <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search transactions..." style={{border:"none",outline:"none",flex:1,fontSize:13,background:"transparent",color:C.text}} />
             {searchQuery&&<button onClick={()=>setSearchQuery("")} style={{background:"none",border:"none",color:C.textLight,fontSize:14,cursor:"pointer",padding:0}}><i className="ti ti-x"/></button>}
           </div>
 
+          )}
+
           {/* Action buttons */}
+          {monthlyTab==="tx"&&(
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             {!isMonthLocked&&<button onClick={()=>{if(selectMode)clearSelection();else setSelectMode(true);}} style={{flex:1,padding:"13px 16px",borderRadius:12,border:`1.5px solid ${selectMode?C.red:C.gray3}`,background:selectMode?C.redLight:C.white,color:selectMode?C.red:C.textMid,fontWeight:500,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
               <i className={`ti ${selectMode?"ti-x":"ti-select"}`} aria-hidden="true" style={{fontSize:17}}/>{selectMode?"Cancel":"Select"}
@@ -1541,8 +1564,10 @@ function App(){
             </button>
           </div>
 
+          )}
+
           {/* Floating delete bar */}
-          {selectMode&&(
+          {monthlyTab==="tx"&&selectMode&&(
             <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:totalSelected>0?C.red:"#444",color:C.white,borderRadius:14,padding:"11px 16px",display:"flex",alignItems:"center",gap:8,zIndex:300,boxShadow:"0 4px 20px rgba(0,0,0,0.3)",whiteSpace:"nowrap"}}>
               <button onClick={allMasterSel?()=>setSelectedIds({exp:new Set(),inc:new Set(),bdo:new Set()}):selectMaster} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:C.white,borderRadius:8,padding:"6px 12px",fontWeight:500,fontSize:12,display:"flex",alignItems:"center",gap:5}}>
                 <i className={`ti ${allMasterSel?"ti-checkbox":"ti-square"}`}/>{allMasterSel?"Deselect all":"All"}
@@ -1555,6 +1580,7 @@ function App(){
           )}
 
           {/* Expense tabs: Card / Cash On Hand */}
+          {monthlyTab==="tx"&&(
           <Card>
             <SL icon="ti-list" text="AED Expenses"/>
             <div style={{display:"flex",gap:4,marginBottom:14,background:C.gray2,borderRadius:10,padding:4}}>
@@ -1668,8 +1694,10 @@ function App(){
               </div>
             )}
           </Card>
+          )}
 
           {/* Income list */}
+          {monthlyTab==="tx"&&(
           <Card>
             <SL icon="ti-cash" text="Income" color={C.teal}/>
             {monthInc.length===0?(
@@ -1720,6 +1748,7 @@ function App(){
               </div>
             )}
           </Card>
+          )}
         </div>
       )}
 
@@ -2558,7 +2587,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 (function(){
   if(!('serviceWorker' in navigator)) return;
   var SW = [
-    "const CACHE='family-budget-v4';",
+    "const CACHE='family-budget-v5';",
     "self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll([self.registration.scope]).catch(()=>{})));self.skipWaiting();});",
     "self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});",
     "self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(ca=>ca.put(e.request,c)).catch(()=>{});return r;}).catch(()=>caches.match(e.request)));});"
