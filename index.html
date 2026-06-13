@@ -286,10 +286,6 @@ function App(){
   const[selectedIds,setSelectedIds]=useState({exp:new Set(),inc:new Set(),bdo:new Set()});
   const[selectMode,setSelectMode]=useState(false);
   const[isOnline,setIsOnline]=useState(navigator.onLine);
-  const[groceryList,setGroceryList]=useState(()=>{
-    try{const g=localStorage.getItem("grocery_list");return g?JSON.parse(g):[];}catch{return[];}
-  });
-  const[groceryForm,setGroceryForm]=useState({name:"",amount:"",category:"Grocery",payType:"Card"});
   const[lockedMonths,setLockedMonths]=useState(()=>{
     try{const l=localStorage.getItem("locked_months");return l?JSON.parse(l):[];}catch{return[];}
   });
@@ -327,10 +323,6 @@ function App(){
     const key=`${selYear}-${selMonth}`;
     setMonthNotes(prev=>({...prev,[key]:note}));
     await updateMS({notes:note});
-  };
-  const saveGrocery=(list)=>{
-    setGroceryList(list);
-    saveConfig("grocery_list",list);
   };
   const[queue,setQueue]=useState(()=>{
     try{const q=localStorage.getItem("budget_queue");return q?JSON.parse(q):[];}
@@ -433,16 +425,39 @@ function App(){
 
   const fetchRate=useCallback(async()=>{
     setRateLoading(true);
+    // 1) Seed from cached rate immediately so the UI is never blank
+    let cached=null;
+    try{
+      const raw=localStorage.getItem("aed_php_rate");
+      if(raw){cached=JSON.parse(raw);if(cached&&cached.rate)setAedToPhp(cached.rate);}
+    }catch{}
+    // If no local cache, try Supabase (in case another device fetched it)
+    if(!cached){
+      try{
+        const res=await db.get("app_config","?key=eq.aed_php_rate");
+        if(Array.isArray(res)&&res.length>0){
+          const v=JSON.parse(res[0].value);
+          if(v&&v.rate){cached=v;setAedToPhp(v.rate);try{localStorage.setItem("aed_php_rate",JSON.stringify(v));}catch{}}
+        }
+      }catch{}
+    }
+    // 2) Try a fresh fetch; on success update + persist, on failure keep the cache
     try{
       const r=await fetch("https://api.exchangerate-api.com/v4/latest/AED");
       const d=await r.json();
-      if(d&&d.rates&&d.rates.PHP){setAedToPhp(d.rates.PHP);}
-    }catch(e){setAedToPhp(null);}
+      if(d&&d.rates&&d.rates.PHP){
+        const fresh={rate:d.rates.PHP,ts:Date.now()};
+        setAedToPhp(fresh.rate);
+        try{localStorage.setItem("aed_php_rate",JSON.stringify(fresh));}catch{}
+        // Persist to Supabase only if changed, so other devices get the latest rate
+        if(!cached||cached.rate!==fresh.rate)saveConfig("aed_php_rate",fresh);
+      }
+    }catch(e){/* keep whatever cached value we already set */}
     setRateLoading(false);
   },[]);
 
-  const loadAll=useCallback(async()=>{
-    setLoading(true);
+  const loadAll=useCallback(async(silent=false)=>{
+    if(!silent)setLoading(true);
     try{
       const[exp,inc,bdo,ms,sav,bls,gls]=await Promise.all([
         db.get("expenses","?order=created_at.asc"),
@@ -488,7 +503,7 @@ function App(){
     }
     // Load synced config from Supabase (overwrites localStorage fallback)
     try{
-      const cfgKeys=["dark_mode","locked_months","recurring_templates","cat_budgets","grocery_list"];
+      const cfgKeys=["dark_mode","locked_months","recurring_templates","cat_budgets"];
       const cfgRes=await db.get("app_config",`?key=in.(${cfgKeys.join(",")})`);
       if(Array.isArray(cfgRes)){
         cfgRes.forEach(row=>{
@@ -498,12 +513,11 @@ function App(){
             else if(row.key==="locked_months"){setLockedMonths(val);}
             else if(row.key==="recurring_templates"){setRecurringTemplates(val);}
             else if(row.key==="cat_budgets"){setCatBudgets(val);}
-            else if(row.key==="grocery_list"){setGroceryList(val);}
           }catch{}
         });
       }
     }catch{}
-    setLoading(false);
+    if(!silent)setLoading(false);
   },[]);
 
   useEffect(()=>{
@@ -515,6 +529,17 @@ function App(){
     window.addEventListener("offline",goOffline);
     return()=>{window.removeEventListener("online",goOnline);window.removeEventListener("offline",goOffline);};
   },[loadAll,fetchRate]);
+
+  // Auto-sync across devices: silently re-pull data when the app regains
+  // focus/visibility and on a light interval while open. No spinner flash.
+  useEffect(()=>{
+    const refresh=()=>{if(navigator.onLine&&document.visibilityState==="visible"&&queue.length===0)loadAll(true);};
+    const onVis=()=>{if(document.visibilityState==="visible")refresh();};
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",onVis);
+    const id=setInterval(refresh,45000); // poll every 45s while tab is visible
+    return()=>{window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",onVis);clearInterval(id);};
+  },[loadAll,queue.length]);
 
   // Auto-sync queue when coming back online
   useEffect(()=>{
@@ -540,17 +565,22 @@ function App(){
   const pctSpent=totalInc>0?((totalCardExp+withdraw)/totalInc*100):0;
   const overspent=balance<0&&totalInc>0;
 
-  // BDO carry-over: auto-calculate opening from previous month's closing
-  // Recursively calculate BDO closing balance, carrying over from previous months
-  // March (index 2) is the base — uses manually set bdo_opening
-  // Every month after that ignores bdo_opening and uses previous month's closing
-  const getBDOClosing=(monthIdx)=>{
-    const msi=monthSettings[`${selYear}-${monthIdx}`]||{};
-    // March=3 is the first month with BDO data — use manual bdo_opening
-    const opening=monthIdx<=3
+  // BDO carry-over: auto-calculate opening from previous month's closing.
+  // The genuine base is March 2026 (first month with BDO data) — it uses the
+  // manually set bdo_opening. Every month after that carries from the previous
+  // month's closing, crossing year boundaries (Dec -> next Jan) correctly.
+  const BDO_BASE_YEAR=2026, BDO_BASE_MONTH=3;
+  const getBDOClosingYM=(year,monthIdx)=>{
+    // Before the base month there is no BDO history
+    if(year<BDO_BASE_YEAR||(year===BDO_BASE_YEAR&&monthIdx<BDO_BASE_MONTH))return 0;
+    const msi=monthSettings[`${year}-${monthIdx}`]||{};
+    const isBase=(year===BDO_BASE_YEAR&&monthIdx===BDO_BASE_MONTH);
+    const prevMonth=monthIdx===1?12:monthIdx-1;
+    const prevYear=monthIdx===1?year-1:year;
+    const opening=isBase
       ? Number(msi.bdo_opening||0)
-      : getBDOClosing(monthIdx-1); // carry from previous month
-    const txs=bdoTx.filter(e=>e.month===monthIdx&&(e.year||selYear)===selYear);
+      : getBDOClosingYM(prevYear,prevMonth); // carry from previous month (crosses year)
+    const txs=bdoTx.filter(e=>e.month===monthIdx&&(e.year||BDO_BASE_YEAR)===year);
     let bal=opening;
     txs.forEach(tx=>{
       if(tx.tx_type==="deposit") bal+=Number(tx.amount||0);
@@ -558,11 +588,15 @@ function App(){
     });
     return bal;
   };
+  // Backward-compatible wrapper used elsewhere (operates within selYear)
+  const getBDOClosing=(monthIdx)=>getBDOClosingYM(selYear,monthIdx);
   // Opening balance for selected month
-  const bdoOpening=selMonth<=3
+  const isBaseMonth=(selYear===BDO_BASE_YEAR&&selMonth===BDO_BASE_MONTH);
+  const bdoOpening=isBaseMonth
     ? Number(ms.bdo_opening||0)
-    : getBDOClosing(selMonth-1);
-  const prevMonthClosing=selMonth>3?getBDOClosing(selMonth-1):null;
+    : (selMonth===1?getBDOClosingYM(selYear-1,12):getBDOClosingYM(selYear,selMonth-1));
+  const hasBdoHistory=(selYear>BDO_BASE_YEAR||(selYear===BDO_BASE_YEAR&&selMonth>BDO_BASE_MONTH));
+  const prevMonthClosing=hasBdoHistory?bdoOpening:null;
   const monthBDO=bdoTx.filter(e=>e.month===selMonth&&(e.year||selYear)===selYear).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
   let running=bdoOpening;
   const bdoWithRunning=monthBDO.map(tx=>{
@@ -1035,7 +1069,7 @@ function App(){
             </div>
           </div>
           <div style={{display:"flex",gap:3,background:"rgba(0,0,0,0.25)",borderRadius:12,padding:4,backdropFilter:"blur(8px)",overflowX:"auto",maxWidth:"100%",scrollbarWidth:"none"}}>
-            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"],["Grocery","ti-shopping-cart","grocery"],["Bills","ti-file-invoice","bills"],["Goals","ti-target","goals"]].map(([label,icon,v])=>(
+            {[["Dashboard","ti-layout-dashboard","dashboard"],["Monthly","ti-calendar-month","monthly"],["BDO","ti-building-bank","bdo"],["Bills","ti-file-invoice","bills"],["Goals","ti-target","goals"]].map(([label,icon,v])=>(
               <button key={v} onClick={()=>setView(v)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 10px",borderRadius:9,background:view===v?C.coral:"transparent",color:view===v?C.white:"#9AAAC8",border:"none",fontWeight:view===v?500:400,fontSize:12}}>
                 <i className={`ti ${icon}`} aria-hidden="true" style={{fontSize:14}}/><span className="hide-mobile">{label}</span>
               </button>
@@ -1785,7 +1819,7 @@ function App(){
             </div>
             {prevMonthClosing!==null&&(
               <div style={{background:"rgba(255,255,255,0.07)",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,color:"#9AAAC8",display:"flex",alignItems:"center",gap:6}}>
-                <i className="ti ti-arrow-forward"/> Carried over from {MONTHS[selMonth-2]}: <strong style={{color:C.tealHero}}>{fmt(prevMonthClosing,"PHP")}</strong>
+                <i className="ti ti-arrow-forward"/> Carried over from {MONTHS[selMonth===1?11:selMonth-2]}{selMonth===1?` ${selYear-1}`:""}: <strong style={{color:C.tealHero}}>{fmt(prevMonthClosing,"PHP")}</strong>
               </div>
             )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -1876,170 +1910,6 @@ function App(){
         </div>
       )}
       </div>
-
-      {/* ── GROCERY LIST TAB ── */}
-      {view==="grocery"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-
-          {/* Summary card */}
-          {groceryList.length>0&&(()=>{
-            const total=groceryList.reduce((s,i)=>s+Number(i.amount||0),0);
-            const checked=groceryList.filter(i=>i.checked);
-            const checkedTotal=checked.reduce((s,i)=>s+Number(i.amount||0),0);
-            const cardTotal=groceryList.filter(i=>!i.checked&&i.payType==="Card").reduce((s,i)=>s+Number(i.amount||0),0);
-            const cashTotal=groceryList.filter(i=>!i.checked&&i.payType==="Cash On Hand").reduce((s,i)=>s+Number(i.amount||0),0);
-            return(
-              <Card>
-                <div style={{fontSize:11,fontWeight:500,color:C.textLight,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
-                  <i className="ti ti-shopping-cart" style={{color:C.teal,fontSize:14}}/> SHOPPING SUMMARY
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-                  <div style={{textAlign:"center",background:C.gray1,borderRadius:10,padding:"8px 4px"}}>
-                    <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>Total List</div>
-                    <div style={{fontSize:14,fontWeight:500,color:C.text}}>{fmt(total,"AED")}</div>
-                  </div>
-                  <div style={{textAlign:"center",background:C.tealLight,borderRadius:10,padding:"8px 4px",border:`1px solid #A7D7C5`}}>
-                    <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>By Card</div>
-                    <div style={{fontSize:14,fontWeight:500,color:C.teal}}>{fmt(cardTotal,"AED")}</div>
-                  </div>
-                  <div style={{textAlign:"center",background:C.amberLight,borderRadius:10,padding:"8px 4px",border:`1px solid #FDE68A`}}>
-                    <div style={{fontSize:10,color:C.textLight,marginBottom:3}}>By Cash</div>
-                    <div style={{fontSize:14,fontWeight:500,color:"#92400E"}}>{fmt(cashTotal,"AED")}</div>
-                  </div>
-                </div>
-                {checked.length>0&&(
-                  <div style={{background:C.tealLight,borderRadius:10,padding:"8px 12px",fontSize:12,color:C.tealText,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <span>✅ {checked.length} item{checked.length>1?"s":""} done · {fmt(checkedTotal,"AED")}</span>
-                    <button onClick={async()=>{
-                      const done=groceryList.filter(i=>i.checked);
-                      for(const item of done){
-                        const data={month:selMonth,year:selYear,amount:Number(item.amount),description:item.name,category:item.category,pay_type:item.payType,currency:"AED",date:new Date().toISOString().split("T")[0]};
-                        const tempId="tmp_"+Date.now()+Math.random();
-                        const tempItem={...data,id:tempId,_pending:true};
-                        setExpenses(prev=>[...prev,tempItem]);
-                        if(isOnline){
-                          try{
-                            const res=await db.post("expenses",data);
-                            if(Array.isArray(res)&&res[0])setExpenses(prev=>prev.map(e=>e.id===tempId?res[0]:e));
-                          }catch(e){saveQueue([...queue,{type:"expense",data,tempId}]);}
-                        } else {
-                          saveQueue([...queue,{type:"expense",data,tempId}]);
-                        }
-                      }
-                      saveGrocery(groceryList.filter(i=>!i.checked));
-                      showToast(`Added ${done.length} item${done.length>1?"s":""} to expenses!`,C.teal);
-                    }} style={{background:C.teal,color:C.white,border:"none",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:500}}>
-                      Add to expenses
-                    </button>
-                  </div>
-                )}
-              </Card>
-            );
-          })()}
-
-          {/* Add item form */}
-          <Card>
-            <div style={{fontSize:11,fontWeight:500,color:C.textLight,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
-              <i className="ti ti-plus" style={{color:C.coral,fontSize:14}}/> ADD ITEM
-            </div>
-            <div style={{display:"flex",gap:8,marginBottom:8}}>
-              <input
-                placeholder="Item name (e.g. Milk, Rice...)"
-                value={groceryForm.name}
-                onChange={e=>setGroceryForm(f=>({...f,name:e.target.value}))}
-                style={{...inp,flex:2,marginBottom:0}}
-              />
-              <input
-                type="text" inputMode="decimal" pattern="[0-9]*"
-                placeholder="AED"
-                value={groceryForm.amount}
-                onChange={e=>setGroceryForm(f=>({...f,amount:e.target.value}))}
-                style={{...inp,flex:1,marginBottom:0}}
-              />
-            </div>
-            <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {["Grocery","Food","Shopping","Other"].map(c=>{
-                const cm=CAT_META[c]||CAT_META.Other;
-                const sel=groceryForm.category===c;
-                return(
-                  <button key={c} onClick={()=>setGroceryForm(f=>({...f,category:c}))} style={{flex:1,padding:"7px 4px",borderRadius:9,border:`2px solid ${sel?cm.border:C.gray3}`,background:sel?cm.bg:C.white,cursor:"pointer",fontSize:10,color:sel?cm.text:C.textLight,fontWeight:sel?500:400}}>
-                    {c}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {["Card","Cash On Hand"].map(t=>(
-                <button key={t} onClick={()=>setGroceryForm(f=>({...f,payType:t}))} style={{flex:1,padding:"8px",borderRadius:9,border:`2px solid ${groceryForm.payType===t?C.navy:C.gray3}`,background:groceryForm.payType===t?C.navy:C.white,color:groceryForm.payType===t?C.white:C.textMid,fontSize:12,fontWeight:groceryForm.payType===t?500:400}}>
-                  {t}
-                </button>
-              ))}
-            </div>
-            <button onClick={()=>{
-              if(!groceryForm.name)return;
-              const item={id:"g_"+Date.now(),name:groceryForm.name,amount:groceryForm.amount||"0",category:groceryForm.category,payType:groceryForm.payType,checked:false};
-              saveGrocery([...groceryList,item]);
-              setGroceryForm(f=>({...f,name:"",amount:""}));
-            }} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:C.coral,color:C.white,fontWeight:500,fontSize:14}}>
-              + Add to list
-            </button>
-          </Card>
-
-          {/* Grocery list */}
-          {groceryList.length===0?(
-            <Card>
-              <div style={{textAlign:"center",padding:"2rem 1rem",color:C.textLight}}>
-                <i className="ti ti-shopping-cart" style={{fontSize:36,display:"block",marginBottom:10,color:C.gray3}}/>
-                <div style={{fontSize:14,marginBottom:4}}>Your list is empty</div>
-                <div style={{fontSize:12}}>Add items above to start your grocery list</div>
-              </div>
-            </Card>
-          ):(
-            <Card>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <div style={{fontSize:11,fontWeight:500,color:C.textLight,display:"flex",alignItems:"center",gap:6}}>
-                  <i className="ti ti-list" style={{fontSize:14}}/> LIST ({groceryList.length} items)
-                </div>
-                <button onClick={()=>saveGrocery([])} style={{fontSize:11,color:C.red,background:"none",border:"none",padding:0}}>
-                  Clear all
-                </button>
-              </div>
-              {groceryList.map(item=>{
-                const cm=CAT_META[item.category]||CAT_META.Other;
-                return(
-                  <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.gray2}`,opacity:item.checked?0.5:1}}>
-                    {/* Checkbox */}
-                    <button onClick={()=>saveGrocery(groceryList.map(i=>i.id===item.id?{...i,checked:!i.checked}:i))}
-                      style={{width:24,height:24,borderRadius:7,border:`2px solid ${item.checked?C.teal:C.gray3}`,background:item.checked?C.teal:C.white,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                      {item.checked&&<i className="ti ti-check" style={{fontSize:11,color:C.white}}/>}
-                    </button>
-                    {/* Category icon */}
-                    <div style={{width:32,height:32,borderRadius:9,background:cm.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1.5px solid ${cm.border}`}}>
-                      <i className={`ti ${cm.icon}`} style={{fontSize:13,color:cm.text}}/>
-                    </div>
-                    {/* Name + pay type */}
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:500,color:C.text,textDecoration:item.checked?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
-                      <div style={{fontSize:10,color:C.textLight,marginTop:2}}>
-                        <span style={{background:item.payType==="Card"?C.navyLight:C.amberLight,color:item.payType==="Card"?C.white:"#92400E",padding:"1px 6px",borderRadius:5,fontSize:9}}>{item.payType}</span>
-                        {" · "}{item.category}
-                      </div>
-                    </div>
-                    {/* Amount + delete */}
-                    <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:13,fontWeight:500,color:C.text}}>{Number(item.amount)>0?fmt(Number(item.amount),"AED"):"—"}</div>
-                      <button onClick={()=>saveGrocery(groceryList.filter(i=>i.id!==item.id))} style={{background:"none",border:"none",color:C.gray3,fontSize:13,padding:"2px 0"}}>
-                        <i className="ti ti-trash"/>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </Card>
-          )}
-
-        </div>
-      )}
 
 
       {/* ── BILLS TRACKER ── */}
